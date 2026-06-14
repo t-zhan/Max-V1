@@ -1,0 +1,3 @@
+[submodule "third_party/Bench2Drive-VL"]
+	path = third_party/Bench2Drive-VL
+	url = https://github.com/t-zhan/Bench2Drive-VL.git

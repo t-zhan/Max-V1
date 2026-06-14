@@ -1,0 +1,75 @@
+[project]
+name = "max-v1"
+version = "0.1.0"
+description = "Max V1: VLM for autonomous driving waypoint prediction"
+requires-python = "==3.11.*"
+dependencies = [
+    "pip",
+    "ms-swift>=4.3",
+    "pillow",
+    "numpy",
+    "huggingface-hub",
+    "deepspeed",
+    "qwen-vl-utils",
+    "swanlab",
+
+    # Required by B2DVL submodule imports
+    "carla>=0.9",
+    "opencv-python",
+    "shapely",
+    "webcolors==1.13",
+]
+
+[project.optional-dependencies]
+cu124 = [
+    "torch==2.6.0+cu124",
+    "torchvision==0.21.0+cu124",
+    "transformers==5.3.0",
+    "flash-linear-attention==0.4.2",
+    "causal-conv1d==1.6.2.post1",
+]
+cu126 = [
+    "torch==2.12.0+cu126",
+    "torchvision==0.27.0+cu126",
+    "transformers==5.10.2",
+    "flash-linear-attention==0.5.0",
+    "causal-conv1d==1.6.2.post1",
+]
+
+[tool.uv]
+python-preference = "only-managed"
+python-downloads = "automatic"
+conflicts = [[{ extra = "cu124" }, { extra = "cu126" }]]
+
+[tool.uv.sources]
+
+torch = [
+    { index = "pytorch-cu124", extra = "cu124" },
+    { index = "pytorch-cu126", extra = "cu126" },
+]
+torchvision = [
+    { index = "pytorch-cu124", extra = "cu124" },
+    { index = "pytorch-cu126", extra = "cu126" },
+]
+causal-conv1d = [
+    { path = "wheels/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl", extra = "cu124" },
+]
+
+[tool.uv.extra-build-dependencies]
+causal-conv1d = [{ requirement = "torch", match-runtime = true }, "numpy"]
+flash-linear-attention = [{ requirement = "torch", match-runtime = true }, "numpy"]
+
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
