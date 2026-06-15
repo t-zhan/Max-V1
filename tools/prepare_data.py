@@ -44,8 +44,8 @@ GOT_PREV = _got.CHAIN["PREV"]
 GOT_INHERIT = _got.CHAIN["INHERIT"]
 
 # ── Constants ──────────────────────────────────────────────────────────────
-VQA_DIRNAME = "Bench2Drive-VL-mini"
-RAW_DIRNAME = "Bench2Drive-mini"
+VQA_DIRNAME = "Bench2Drive-VL-base"
+RAW_DIRNAME = "Bench2Drive"
 
 WP_KEYS = ['0.5s', '1.0s', '1.5s', '2.0s', '2.5s', '3.0s', '3.5s', '4.0s']
 

@@ -261,7 +261,7 @@ sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/63/5c/2403b8410122d1
 [[package]]
 name = "causal-conv1d"
 version = "1.6.2.post1+cu12torch2.6cxx11abifalse"
-source = { path = "wheels/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" }
+source = { url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'linux'",
@@ -272,7 +272,7 @@ dependencies = [
     { name = "torch", version = "2.6.0+cu124", source = { registry = "https://download.pytorch.org/whl/cu124" } },
 ]
 wheels = [
-    { filename = "causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl", hash = "sha256:7b37dac833c0a98c06c2da70de26e85631fb30957b9a3e95391f8038cf01ad67" },
+    { url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl", hash = "sha256:7b37dac833c0a98c06c2da70de26e85631fb30957b9a3e95391f8038cf01ad67" },
 ]
 
 [package.metadata]
@@ -1194,7 +1194,7 @@ dependencies = [
 
 [package.optional-dependencies]
 cu124 = [
-    { name = "causal-conv1d", version = "1.6.2.post1+cu12torch2.6cxx11abifalse", source = { path = "wheels/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" } },
+    { name = "causal-conv1d", version = "1.6.2.post1+cu12torch2.6cxx11abifalse", source = { url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" } },
     { name = "flash-linear-attention", version = "0.4.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" } },
     { name = "torch", version = "2.6.0+cu124", source = { registry = "https://download.pytorch.org/whl/cu124" } },
     { name = "torchvision", version = "0.21.0+cu124", source = { registry = "https://download.pytorch.org/whl/cu124" } },
@@ -1211,7 +1211,7 @@ cu126 = [
 [package.metadata]
 requires-dist = [
     { name = "carla", specifier = ">=0.9" },
-    { name = "causal-conv1d", marker = "extra == 'cu124'", path = "wheels/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" },
+    { name = "causal-conv1d", marker = "extra == 'cu124'", url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" },
     { name = "causal-conv1d", marker = "extra == 'cu126'", specifier = "==1.6.2.post1" },
     { name = "deepspeed" },
     { name = "flash-linear-attention", marker = "extra == 'cu124'", specifier = "==0.4.2" },

@@ -3,17 +3,10 @@
 # Prerequisites: data prepared (scripts/setup.sh).
 # Usage: ./scripts/train.sh [--background]
 set -euo pipefail
-set -a; source .env; set +a
 
-RUN_BG=false
-if [[ "${1:-}" == "--background" ]]; then
-    RUN_BG=true
-fi
-
-TIMESTAMP=$(date +%y%m%d_%H%M%S)
 TRAIN_CMD="swift sft \
     --external_plugins models/max_v1/register_max.py \
-    --model pretrained/Qwen3.5-0.8B \
+    --model ${MODEL_DIR}/${MODEL_NAME} \
     --model_type max_qwen3_5 \
     --tuner_type full \
     --freeze_vit false \
@@ -32,15 +25,17 @@ TRAIN_CMD="swift sft \
     --dataloader_num_workers 4 \
     --deepspeed zero3 \
     --max_length 65536 \
-    --output_dir output \
+    --output_dir outputs \
     --add_non_thinking_prefix false \
     --remove_unused_columns false"
 
-if $RUN_BG; then
-    mkdir -p nohup_logs
-    nohup $TRAIN_CMD > "nohup_logs/${TIMESTAMP}_run.log" 2>&1 &
+if [[ "${1:-}" == "--background" ]]; then
+    TIMESTAMP=$(date +%y%m%d_%H%M%S)
+    LOG_DIR=logs
+    mkdir -p ${LOG_DIR}
+    nohup $TRAIN_CMD > "${LOG_DIR}/${TIMESTAMP}_run.log" 2>&1 &
     echo "Training launched (PID: $!)"
-    echo "Monitor: tail -f nohup_logs/${TIMESTAMP}_run.log"
+    echo "Monitor: tail -f ${LOG_DIR}/${TIMESTAMP}_run.log"
 else
     $TRAIN_CMD
 fi

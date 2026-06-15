@@ -3,14 +3,13 @@
 # Prerequisites: activated venv with dependencies installed, HF_TOKEN set.
 # Run from project root directory.
 set -euo pipefail
-set -a; source .env; set +a
 
-# --- Download Qwen3.5-0.8B base model ---
-if [ ! -f "pretrained/Qwen3.5-0.8B/config.json" ]; then
-    echo "Downloading Qwen3.5-0.8B base model..."
-    hf download Qwen/Qwen3.5-0.8B --local-dir pretrained/Qwen3.5-0.8B
+# --- Download base model ---
+if [ ! -f "${MODEL_DIR}/${MODEL_NAME}/config.json" ]; then
+    echo "Downloading base model..."
+    hf download ${MODEL_NAME} --local-dir ${MODEL_DIR}/${MODEL_NAME}
 else
-    echo "Base model ready: pretrained/Qwen3.5-0.8B"
+    echo "Base model ready: ${MODEL_DIR}/${MODEL_NAME}"
 fi
 
 # --- Prepare SFT dataset ---
