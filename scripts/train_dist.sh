@@ -4,7 +4,6 @@
 # Usage: ./scripts/train.sh [--background]
 set -euo pipefail
 
-export NPROC_PER_NODE=gpu
 export NNODES=$WORLD_SIZE
 export NODE_RANK=$RANK
 

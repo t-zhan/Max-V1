@@ -4,8 +4,7 @@
 # Usage: ./scripts/train.sh [--background]
 set -euo pipefail
 
-export NPROC_PER_NODE=gpu
-export CUDA_VISIBLE_DEVICES=0,1,2
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 TRAIN_CMD="swift sft \
     --external_plugins models/max_v1/register_max.py \
