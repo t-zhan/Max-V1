@@ -5,7 +5,8 @@
 set -euo pipefail
 
 export NPROC_PER_NODE=gpu
-export CUDA_VISIBLE_DEVICES=0,1,2
+export NNODES=$WORLD_SIZE
+export NODE_RANK=$RANK
 
 TRAIN_CMD="swift sft \
     --external_plugins models/max_v1/register_max.py \

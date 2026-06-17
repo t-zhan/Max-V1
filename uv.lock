@@ -235,15 +235,6 @@ wheels = [
 ]
 
 [[package]]
-name = "carla"
-version = "0.9.16"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/22/00/986260e4d35444a3a88188deed7fa1b6739b20778d1899fe4b4975121171/carla-0.9.16-cp311-cp311-manylinux_2_31_x86_64.whl", hash = "sha256:9ca1e0793a5f453375a8bc93d85d43cc5629b3342bafe10ab8ebb1ef4fb111dc", size = 34196201, upload-time = "2025-09-14T07:54:42.834Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/96/de/ff523c1d3406de2e30beba69cf58eac354c2ce6fe3e233bfb881621a2764/carla-0.9.16-cp311-cp311-win_amd64.whl", hash = "sha256:9d8bca9ea3a3bccd691536b17f6f278335ce9b6af7883612aa0800929b388ed1", size = 5034970, upload-time = "2025-09-14T07:54:45.36Z" },
-]
-
-[[package]]
 name = "causal-conv1d"
 version = "1.6.2.post1"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
@@ -261,7 +252,7 @@ sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/63/5c/2403b8410122d1
 [[package]]
 name = "causal-conv1d"
 version = "1.6.2.post1+cu12torch2.6cxx11abifalse"
-source = { url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" }
+source = { path = "wheels/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'linux'",
@@ -272,7 +263,7 @@ dependencies = [
     { name = "torch", version = "2.6.0+cu124", source = { registry = "https://download.pytorch.org/whl/cu124" } },
 ]
 wheels = [
-    { url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl", hash = "sha256:7b37dac833c0a98c06c2da70de26e85631fb30957b9a3e95391f8038cf01ad67" },
+    { filename = "causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl", hash = "sha256:7b37dac833c0a98c06c2da70de26e85631fb30957b9a3e95391f8038cf01ad67" },
 ]
 
 [package.metadata]
@@ -1178,23 +1169,19 @@ name = "max-v1"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "carla" },
     { name = "deepspeed" },
     { name = "huggingface-hub" },
     { name = "ms-swift" },
     { name = "numpy" },
-    { name = "opencv-python" },
     { name = "pillow" },
     { name = "pip" },
     { name = "qwen-vl-utils" },
-    { name = "shapely" },
     { name = "swanlab" },
-    { name = "webcolors" },
 ]
 
 [package.optional-dependencies]
 cu124 = [
-    { name = "causal-conv1d", version = "1.6.2.post1+cu12torch2.6cxx11abifalse", source = { url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" } },
+    { name = "causal-conv1d", version = "1.6.2.post1+cu12torch2.6cxx11abifalse", source = { path = "wheels/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" } },
     { name = "flash-linear-attention", version = "0.4.2", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" } },
     { name = "torch", version = "2.6.0+cu124", source = { registry = "https://download.pytorch.org/whl/cu124" } },
     { name = "torchvision", version = "0.21.0+cu124", source = { registry = "https://download.pytorch.org/whl/cu124" } },
@@ -1210,8 +1197,7 @@ cu126 = [
 
 [package.metadata]
 requires-dist = [
-    { name = "carla", specifier = ">=0.9" },
-    { name = "causal-conv1d", marker = "extra == 'cu124'", url = "https://github.com/t-zhan/Max-V1/releases/download/v0.1.0/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" },
+    { name = "causal-conv1d", marker = "extra == 'cu124'", path = "wheels/causal_conv1d-1.6.2.post1+cu12torch2.6cxx11abifalse-cp311-cp311-linux_x86_64.whl" },
     { name = "causal-conv1d", marker = "extra == 'cu126'", specifier = "==1.6.2.post1" },
     { name = "deepspeed" },
     { name = "flash-linear-attention", marker = "extra == 'cu124'", specifier = "==0.4.2" },
@@ -1219,11 +1205,9 @@ requires-dist = [
     { name = "huggingface-hub" },
     { name = "ms-swift", specifier = ">=4.3" },
     { name = "numpy" },
-    { name = "opencv-python" },
     { name = "pillow" },
     { name = "pip" },
     { name = "qwen-vl-utils" },
-    { name = "shapely" },
     { name = "swanlab" },
     { name = "torch", marker = "extra == 'cu124'", specifier = "==2.6.0+cu124", index = "https://download.pytorch.org/whl/cu124", conflict = { package = "max-v1", extra = "cu124" } },
     { name = "torch", marker = "extra == 'cu126'", specifier = "==2.12.0+cu126", index = "https://download.pytorch.org/whl/cu126", conflict = { package = "max-v1", extra = "cu126" } },
@@ -1231,7 +1215,6 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'cu126'", specifier = "==0.27.0+cu126", index = "https://download.pytorch.org/whl/cu126", conflict = { package = "max-v1", extra = "cu126" } },
     { name = "transformers", marker = "extra == 'cu124'", specifier = "==5.3.0" },
     { name = "transformers", marker = "extra == 'cu126'", specifier = "==5.10.2" },
-    { name = "webcolors", specifier = "==1.13" },
 ]
 provides-extras = ["cu124", "cu126"]
 
@@ -2047,24 +2030,6 @@ wheels = [
 ]
 
 [[package]]
-name = "opencv-python"
-version = "4.13.0.92"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/fc/6f/5a28fef4c4a382be06afe3938c64cc168223016fa520c5abaf37e8862aa5/opencv_python-4.13.0.92-cp37-abi3-macosx_13_0_arm64.whl", hash = "sha256:caf60c071ec391ba51ed00a4a920f996d0b64e3e46068aac1f646b5de0326a19", size = 46247052, upload-time = "2026-02-05T07:01:25.046Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/08/ac/6c98c44c650b8114a0fb901691351cfb3956d502e8e9b5cd27f4ee7fbf2f/opencv_python-4.13.0.92-cp37-abi3-macosx_14_0_x86_64.whl", hash = "sha256:5868a8c028a0b37561579bfb8ac1875babdc69546d236249fff296a8c010ccf9", size = 32568781, upload-time = "2026-02-05T07:01:41.379Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/3e/51/82fed528b45173bf629fa44effb76dff8bc9f4eeaee759038362dfa60237/opencv_python-4.13.0.92-cp37-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:0bc2596e68f972ca452d80f444bc404e08807d021fbba40df26b61b18e01838a", size = 47685527, upload-time = "2026-02-05T06:59:11.24Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/db/07/90b34a8e2cf9c50fe8ed25cac9011cde0676b4d9d9c973751ac7616223a2/opencv_python-4.13.0.92-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:402033cddf9d294693094de5ef532339f14ce821da3ad7df7c9f6e8316da32cf", size = 70460872, upload-time = "2026-02-05T06:59:19.162Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/02/6d/7a9cc719b3eaf4377b9c2e3edeb7ed3a81de41f96421510c0a169ca3cfd4/opencv_python-4.13.0.92-cp37-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:bccaabf9eb7f897ca61880ce2869dcd9b25b72129c28478e7f2a5e8dee945616", size = 46708208, upload-time = "2026-02-05T06:59:15.419Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/fd/55/b3b49a1b97aabcfbbd6c7326df9cb0b6fa0c0aefa8e89d500939e04aa229/opencv_python-4.13.0.92-cp37-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:620d602b8f7d8b8dab5f4b99c6eb353e78d3fb8b0f53db1bd258bb1aa001c1d5", size = 72927042, upload-time = "2026-02-05T06:59:23.389Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/fb/17/de5458312bcb07ddf434d7bfcb24bb52c59635ad58c6e7c751b48949b009/opencv_python-4.13.0.92-cp37-abi3-win32.whl", hash = "sha256:372fe164a3148ac1ca51e5f3ad0541a4a276452273f503441d718fab9c5e5f59", size = 30932638, upload-time = "2026-02-05T07:02:14.98Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e9/a5/1be1516390333ff9be3a9cb648c9f33df79d5096e5884b5df71a588af463/opencv_python-4.13.0.92-cp37-abi3-win_amd64.whl", hash = "sha256:423d934c9fafb91aad38edf26efb46da91ffbc05f3f59c4b0c72e699720706f5", size = 40212062, upload-time = "2026-02-05T07:02:12.724Z" },
-]
-
-[[package]]
 name = "orjson"
 version = "3.11.9"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
@@ -2679,25 +2644,6 @@ wheels = [
 ]
 
 [[package]]
-name = "shapely"
-version = "2.1.2"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-dependencies = [
-    { name = "numpy" },
-]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/4d/bc/0989043118a27cccb4e906a46b7565ce36ca7b57f5a18b78f4f1b0f72d9d/shapely-2.1.2.tar.gz", hash = "sha256:2ed4ecb28320a433db18a5bf029986aa8afcfd740745e78847e330d5d94922a9", size = 315489, upload-time = "2025-09-24T13:51:41.432Z" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/8f/8d/1ff672dea9ec6a7b5d422eb6d095ed886e2e523733329f75fdcb14ee1149/shapely-2.1.2-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:91121757b0a36c9aac3427a651a7e6567110a4a67c97edf04f8d55d4765f6618", size = 1820038, upload-time = "2025-09-24T13:50:15.628Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/4f/ce/28fab8c772ce5db23a0d86bf0adaee0c4c79d5ad1db766055fa3dab442e2/shapely-2.1.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:16a9c722ba774cf50b5d4541242b4cce05aafd44a015290c82ba8a16931ff63d", size = 1626039, upload-time = "2025-09-24T13:50:16.881Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/70/8b/868b7e3f4982f5006e9395c1e12343c66a8155c0374fdc07c0e6a1ab547d/shapely-2.1.2-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:cc4f7397459b12c0b196c9efe1f9d7e92463cbba142632b4cc6d8bbbbd3e2b09", size = 3001519, upload-time = "2025-09-24T13:50:18.606Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/13/02/58b0b8d9c17c93ab6340edd8b7308c0c5a5b81f94ce65705819b7416dba5/shapely-2.1.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:136ab87b17e733e22f0961504d05e77e7be8c9b5a8184f685b4a91a84efe3c26", size = 3110842, upload-time = "2025-09-24T13:50:21.77Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/af/61/8e389c97994d5f331dcffb25e2fa761aeedfb52b3ad9bcdd7b8671f4810a/shapely-2.1.2-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:16c5d0fc45d3aa0a69074979f4f1928ca2734fb2e0dde8af9611e134e46774e7", size = 4021316, upload-time = "2025-09-24T13:50:23.626Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d3/d4/9b2a9fe6039f9e42ccf2cb3e84f219fd8364b0c3b8e7bbc857b5fbe9c14c/shapely-2.1.2-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:6ddc759f72b5b2b0f54a7e7cde44acef680a55019eb52ac63a7af2cf17cb9cd2", size = 4178586, upload-time = "2025-09-24T13:50:25.443Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/16/f6/9840f6963ed4decf76b08fd6d7fed14f8779fb7a62cb45c5617fa8ac6eab/shapely-2.1.2-cp311-cp311-win32.whl", hash = "sha256:2fa78b49485391224755a856ed3b3bd91c8455f6121fee0db0e71cefb07d0ef6", size = 1543961, upload-time = "2025-09-24T13:50:26.968Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/38/1e/3f8ea46353c2a33c1669eb7327f9665103aa3a8dfe7f2e4ef714c210b2c2/shapely-2.1.2-cp311-cp311-win_amd64.whl", hash = "sha256:c64d5c97b2f47e3cd9b712eaced3b061f2b71234b3fc263e0fcf7d889c6559dc", size = 1722856, upload-time = "2025-09-24T13:50:28.497Z" },
-]
-
-[[package]]
 name = "shellingham"
 version = "1.5.4"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
@@ -3247,15 +3193,6 @@ source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/49/b4/51fe890511f0f242d07cb1ebe6a5b6db417262b9d2568b460347c57d95cc/wcwidth-0.8.1.tar.gz", hash = "sha256:faf5b4a5366a72dc49cad48cdf21f52bdf63bdda995178e483ba247ff79089b9", size = 1466072, upload-time = "2026-06-08T05:57:23.146Z" }
 wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/bd/6e/95b0e537de1f4d4301f76f944642c6da50d1511cc7b3d64dc418a66c7509/wcwidth-0.8.1-py3-none-any.whl", hash = "sha256:f453740b1e4a4f3291faa37944c555d71056c4da08d59809b307ef4feba695c8", size = 323092, upload-time = "2026-06-08T05:57:21.413Z" },
-]
-
-[[package]]
-name = "webcolors"
-version = "1.13"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a1/fb/f95560c6a5d4469d9c49e24cf1b5d4d21ffab5608251c6020a965fb7791c/webcolors-1.13.tar.gz", hash = "sha256:c225b674c83fa923be93d235330ce0300373d02885cef23238813b0d5668304a", size = 41152, upload-time = "2023-03-27T05:52:57.527Z" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d5/e1/3e9013159b4cbb71df9bd7611cbf90dc2c621c8aeeb677fc41dad72f2261/webcolors-1.13-py3-none-any.whl", hash = "sha256:29bc7e8752c0a1bd4a1f03c14d6e6a72e93d82193738fa860cbff59d0fcc11bf", size = 14360, upload-time = "2023-03-27T05:52:55.468Z" },
 ]
 
 [[package]]
