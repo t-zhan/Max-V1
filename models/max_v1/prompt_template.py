@@ -8,7 +8,7 @@ MAX_SUFFIX = "<|im_end|>"
 COMMAND_TO_TEXT = [
     "follow the road",                # 0: void
     "turn left at the intersection",  # 1: turn left
-    "turns right at the intersection",# 2: turn right
+    "turn right at the intersection",# 2: turn right
     "drive straight at the intersection",  # 3: go straight
     "follow the road",                # 4: follow lane
     "do a lane change to the left",   # 5: change lane to left

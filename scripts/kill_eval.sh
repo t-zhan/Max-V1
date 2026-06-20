@@ -1,0 +1,1 @@
+pkill -9 -f "CarlaUE4|leaderboard_evaluator|max_server"

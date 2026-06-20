@@ -1,0 +1,27 @@
+{
+    "INFERENCE_BASICS": {
+        "USE_ALL_CAMERAS": true,
+        "USE_BEV": false
+    },
+    "BRIDGE_CONTROL": {
+        "turn_pid": {
+            "k_p": 0.9,
+            "k_i": 0.75,
+            "k_d": 0.3,
+            "n": 20
+        },
+        "speed_pid": {
+            "k_p": 5.0,
+            "k_i": 0.5,
+            "k_d": 1.0,
+            "n": 20
+        },
+        "aim_distance_fast": 3.0,
+        "aim_distance_slow": 2.25,
+        "aim_distance_threshold": 5.5,
+        "brake_speed": 0.4,
+        "brake_ratio": 1.1,
+        "clip_delta": 1.0,
+        "clip_throttle": 1.0
+    }
+}

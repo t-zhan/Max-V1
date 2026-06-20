@@ -8,10 +8,14 @@ dependencies = [
     "ms-swift>=4.3",
     "pillow",
     "numpy",
+    "packaging",
     "huggingface-hub",
     "deepspeed",
     "qwen-vl-utils",
     "swanlab",
+    "fastapi",
+    "uvicorn",
+    "opencv-python",
 ]
 
 [project.optional-dependencies]

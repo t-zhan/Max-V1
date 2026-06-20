@@ -37,6 +37,11 @@ class MaxLoader(ModelLoader):
         return MaxConfig(
             qwen_model_dir=model_dir,
             qwen_model_family=self.QWEN_MODEL_FAMILY,
+            pred_len=8,
+            use_cache=False,
+            scheduled_sampling_ratio=0.0,
+            max_model_len=65536,
+            max_new_tokens=512
         )
 
     def get_processor(self, model_dir, config):
