@@ -15,7 +15,7 @@ fi
 # --- Prepare SFT dataset ---
 if [ ! -f "data/sft/max_sft_train.json" ]; then
     echo "Preparing Max SFT training data..."
-    python tools/prepare_data.py --data-dir data
+    python tools/prepare_data.py --vqa-dir data/Bench2Drive-VL-base --raw-dir data/Bench2Drive --out data/sft/max_sft_train.json
 else
     echo "Training data ready: data/sft/max_sft_train.json"
 fi

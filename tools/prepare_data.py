@@ -9,7 +9,7 @@ Data sources:
 
 Usage (from project root):
   bash tools/get_data.sh
-  python tools/prepare_data.py --data-dir data
+  python tools/prepare_data.py --vqa-dir data/Bench2Drive-VL-base --raw-dir data/Bench2Drive --out data/sft/max_sft_train.json
 """
 import argparse, json, multiprocessing
 import re
@@ -42,10 +42,6 @@ _got = InferConfig()
 GOT_ORDER = _got.CHAIN["ORDER"]
 GOT_PREV = _got.CHAIN["PREV"]
 GOT_INHERIT = _got.CHAIN["INHERIT"]
-
-# ── Constants ──────────────────────────────────────────────────────────────
-VQA_DIRNAME = "Bench2Drive-VL-base"
-RAW_DIRNAME = "Bench2Drive"
 
 WP_KEYS = ['0.5s', '1.0s', '1.5s', '2.0s', '2.5s', '3.0s', '3.5s', '4.0s']
 
@@ -111,12 +107,10 @@ def build_cot_sample(vqa_json, prev_vqa_json, qdict_42, front_path, back_path, c
     return final_dict
 
 
-def _process_scenario(data_dir, scenario):
-    raw_dir = data_dir / RAW_DIRNAME
-    concat_dir = data_dir / "concat_images"
+def _process_scenario(vqa_dir, raw_dir, concat_dir, scenario):
     scenario_dir = raw_dir / scenario
     save_dir = concat_dir / scenario
-    vqa_sorted = sorted((data_dir / VQA_DIRNAME / scenario).glob("*.json"),
+    vqa_sorted = sorted((vqa_dir / scenario).glob("*.json"),
                         key=lambda p: int(p.stem))
     samples = []
     prev_vqa_json = None
@@ -136,14 +130,13 @@ def _process_scenario(data_dir, scenario):
     return samples
 
 
-def create_sft_dataset(data_dir, workers):
-    data_dir = Path(data_dir)
-    vqa_dir = data_dir / VQA_DIRNAME
+def create_sft_dataset(vqa_dir, raw_dir, concat_dir, workers):
+    vqa_dir = Path(vqa_dir)
 
     scenarios = sorted(p.name for p in vqa_dir.iterdir() if p.is_dir())
 
     print(f"Processing {len(scenarios)} scenarios with {workers} workers")
-    process_scenario = partial(_process_scenario, data_dir)
+    process_scenario = partial(_process_scenario, vqa_dir, raw_dir, concat_dir)
     with multiprocessing.Pool(workers) as pool:
         results = pool.map(process_scenario, scenarios)
     return [s for r in results for s in r]
@@ -151,13 +144,18 @@ def create_sft_dataset(data_dir, workers):
 
 def main():
     parser = argparse.ArgumentParser(description="Bench2Drive-VL → Max CoT SFT")
-    parser.add_argument("--data-dir", default="./data")
+    parser.add_argument("--vqa-dir", default="./data/Bench2Drive-VL-base")
+    parser.add_argument("--raw-dir", default="./data/Bench2Drive")
+    parser.add_argument("--concat-dir", default="./data/concat_images")
+    parser.add_argument("--out", default="./data/sft/max_sft_train.json")
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
 
-    data_dir = Path(args.data_dir).resolve()
-    samples = create_sft_dataset(data_dir, args.workers)
-    out = data_dir / "sft" / "max_sft_train.json"
+    vqa_dir = Path(args.vqa_dir).resolve()
+    raw_dir = Path(args.raw_dir).resolve()
+    concat_dir = Path(args.concat_dir).resolve()
+    out = Path(args.out).resolve()
+    samples = create_sft_dataset(vqa_dir, raw_dir, concat_dir, args.workers)
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as f:
         json.dump(samples, f, indent=2, ensure_ascii=False)
