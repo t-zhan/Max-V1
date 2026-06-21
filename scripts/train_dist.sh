@@ -4,25 +4,22 @@
 # Usage: ./scripts/train.sh [--background]
 set -euo pipefail
 
-export NNODES=$WORLD_SIZE
-export NODE_RANK=$RANK
-
 TRAIN_CMD="swift sft \
     --external_plugins models/max_v1/register_max.py \
     --model ${MODEL_DIR}/${MODEL_NAME} \
+    --num_train_epochs ${NUM_TRAIN_EPOCHS} \
+    --per_device_train_batch_size ${PER_DEVICE_TRAIN_BATCH_SIZE} \
+    --gradient_accumulation_steps ${GRADIENT_ACCUMULATION_STEPS} \
+    --save_total_limit ${SAVE_TOTAL_LIMIT} \
+    --logging_steps ${LOGGING_STEPS} \
     --model_type max_qwen3_5 \
     --tuner_type full \
     --freeze_vit false \
     --dataset data/sft/max_sft_train.json \
-    --num_train_epochs 10 \
-    --per_device_train_batch_size 1 \
     --learning_rate 1e-4 \
     --target_modules all-linear \
-    --gradient_accumulation_steps 16 \
     --report_to swanlab \
     --save_strategy epoch \
-    --save_total_limit 10 \
-    --logging_steps 100 \
     --warmup_ratio 0.05 \
     --dataset_num_proc 32 \
     --dataloader_num_workers 4 \
