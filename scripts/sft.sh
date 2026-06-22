@@ -1,33 +1,33 @@
 #!/bin/bash
 # Max-V1 SFT training.
 # Prerequisites: data prepared (scripts/setup.sh).
-# Usage: ./scripts/train.sh [--background]
+# Usage: ./scripts/sft.sh [--background]
 set -euo pipefail
 
 TRAIN_CMD="swift sft \
-    --external_plugins models/max_v1/register_max.py \
     --model ${MODEL_DIR}/${MODEL_NAME} \
     --num_train_epochs ${NUM_TRAIN_EPOCHS} \
     --per_device_train_batch_size ${PER_DEVICE_TRAIN_BATCH_SIZE} \
     --gradient_accumulation_steps ${GRADIENT_ACCUMULATION_STEPS} \
     --save_total_limit ${SAVE_TOTAL_LIMIT} \
     --logging_steps ${LOGGING_STEPS} \
-    --model_type max_qwen3_5 \
-    --tuner_type full \
-    --freeze_vit false \
-    --dataset data/sft/max_sft_train.json \
-    --learning_rate 1e-4 \
-    --target_modules all-linear \
-    --report_to swanlab \
-    --save_strategy epoch \
-    --warmup_ratio 0.05 \
-    --dataset_num_proc 32 \
-    --dataloader_num_workers 4 \
-    --deepspeed zero3 \
-    --max_length 65536 \
-    --output_dir outputs \
-    --add_non_thinking_prefix false \
-    --remove_unused_columns false"
+    --dataset ${DATASET} \
+    --report_to ${REPORT_TO} \
+    --deepspeed ${DEEPSPEED} \
+    --max_length ${MAX_LENGTH} \
+    --output_dir ${OUTPUT_DIR} \
+    --model_type ${MODEL_TYPE} \
+    --tuner_type ${TUNER_TYPE} \
+    --freeze_vit ${FREEZE_VIT} \
+    --learning_rate ${LEARNING_RATE} \
+    --target_modules ${TARGET_MODULES} \
+    --save_strategy ${SAVE_STRATEGY} \
+    --warmup_ratio ${WARMUP_RATIO} \
+    --dataset_num_proc ${DATASET_NUM_PROC} \
+    --dataloader_num_workers ${DATALOADER_NUM_WORKERS} \
+    --add_non_thinking_prefix ${ADD_NON_THINKING_PREFIX} \
+    --remove_unused_columns ${REMOVE_UNUSED_COLUMNS} \
+    --external_plugins ${EXTERNAL_PLUGINS}"
 
 if [[ "${1:-}" == "--background" ]]; then
     TIMESTAMP=$(date +%y%m%d_%H%M%S)
