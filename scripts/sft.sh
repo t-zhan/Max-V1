@@ -1,6 +1,5 @@
 #!/bin/bash
 # Max-V1 SFT training.
-# Prerequisites: data prepared (scripts/setup.sh).
 # Usage: ./scripts/sft.sh [--background]
 set -euo pipefail
 

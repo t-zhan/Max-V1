@@ -1,3 +1,7 @@
+import json
+import os
+from dataclasses import replace
+
 import torch
 from transformers import AutoProcessor
 
@@ -11,17 +15,11 @@ from swift.model import (
     register_model_arch,
 )
 from swift.model.patcher import patch_get_input_embeddings
-from swift.template import TemplateMeta, register_template
+from swift.template import TEMPLATE_MAPPING, register_template
 from swift.template.templates.qwen import Qwen2_5VLTemplate, Qwen3VLTemplate, Qwen3_5Template
 from models.max_v1.config import MaxConfig
 from models.max_v1.max_carla import Max
-from models.max_v1.prompt_template import (
-    MAX_CHAT_SEP,
-    MAX_DEFAULT_SYSTEM,
-    MAX_PROMPT,
-    MAX_SUFFIX,
-    MAX_SYSTEM_PREFIX,
-)
+from models.max_v1.prompt_template import MAX_DEFAULT_SYSTEM
 
 
 MAX_TEMPLATE_QWEN2_5 = "max_vl_qwen2_5"
@@ -30,21 +28,56 @@ MAX_TEMPLATE_QWEN3_5 = "max_vl_qwen3_5"
 MAX_ARCH = "max_vl"
 
 
+def _is_max_checkpoint(model_dir):
+    with open(os.path.join(model_dir, "config.json"), "r", encoding="utf-8") as f:
+        config = json.load(f)
+    return (
+        config.get("model_type") == MaxConfig.model_type
+        and "Max" in config.get("architectures", [])
+        and isinstance(config.get("qwen_config"), dict)
+        and isinstance(config.get("reg_head_config"), dict)
+    )
+
+
 class MaxLoader(ModelLoader):
     QWEN_MODEL_FAMILY = ""
 
     def get_config(self, model_dir):
-        return MaxConfig(
-            qwen_model_dir=model_dir,
-            qwen_model_family=self.QWEN_MODEL_FAMILY,
-            pred_len=8,
-            use_cache=False,
-            scheduled_sampling_ratio=0.0,
-            max_model_len=65536,
-            max_new_tokens=512
+        if _is_max_checkpoint(model_dir):
+            config = MaxConfig.from_pretrained(model_dir)
+        else:
+            config = MaxConfig(
+                qwen_model_dir=model_dir,
+                qwen_model_family=self.QWEN_MODEL_FAMILY,
+            )
+
+        config.pred_len = int(
+            self.model_kwargs.pop(
+                "pred_len",
+                config.pred_len,
+            )
         )
+        config.scheduled_sampling_ratio = float(
+            self.model_kwargs.pop(
+                "scheduled_sampling_ratio",
+                config.scheduled_sampling_ratio,
+            )
+        )
+        config.rollout_use_cache = self.model_kwargs.pop(
+            "rollout_use_cache",
+            config.rollout_use_cache,
+        )
+        return config
 
     def get_processor(self, model_dir, config):
+        if _is_max_checkpoint(model_dir):
+            return AutoProcessor.from_pretrained(
+                model_dir,
+                tokenizer_type=config.qwen_model_family,
+                padding_side="right",
+                backend="torchvision",
+            )
+
         return AutoProcessor.from_pretrained(
             config.qwen_model_dir,
             padding_side="right",
@@ -58,7 +91,11 @@ class MaxLoader(ModelLoader):
         processor,
         model_kwargs,
     ):
-        model = Max(config, is_finetuned=False, **model_kwargs)
+        if _is_max_checkpoint(model_dir):
+            model = Max.from_pretrained(model_dir, config=config, **model_kwargs)
+        else:
+            model = Max(config, is_finetuned=False, **model_kwargs)
+
         patch_get_input_embeddings(model.backbone.model.visual, "patch_embed")
         return model
 
@@ -105,18 +142,14 @@ class MaxQwen3_5Template(_MaxTemplateMixin, Qwen3_5Template):
     pass
 
 
-def _register_max_template(template_type, template_cls):
-    register_template(
-        TemplateMeta(
-            template_type=template_type,
-            template_cls=template_cls,
-            prefix=[],
-            prompt=[MAX_PROMPT],
-            chat_sep=[MAX_CHAT_SEP],
-            suffix=[MAX_SUFFIX],
-            system_prefix=[MAX_SYSTEM_PREFIX],
-            default_system=MAX_DEFAULT_SYSTEM,
-        ))
+def _register_max_template(template_type, template_cls, base_template_type):
+    base_meta = TEMPLATE_MAPPING[base_template_type]
+    register_template(replace(
+        base_meta,
+        template_type=template_type,
+        template_cls=template_cls,
+        default_system=MAX_DEFAULT_SYSTEM,
+    ))
 
 
 def _register_max_model_type(
@@ -153,9 +186,9 @@ register_model_arch(
         generator=[],
     ))
 
-_register_max_template(MAX_TEMPLATE_QWEN2_5, MaxQwen2_5Template)
-_register_max_template(MAX_TEMPLATE_QWEN3, MaxQwen3Template)
-_register_max_template(MAX_TEMPLATE_QWEN3_5, MaxQwen3_5Template)
+_register_max_template(MAX_TEMPLATE_QWEN2_5, MaxQwen2_5Template, "qwen2_5_vl")
+_register_max_template(MAX_TEMPLATE_QWEN3, MaxQwen3Template, "qwen3_vl")
+_register_max_template(MAX_TEMPLATE_QWEN3_5, MaxQwen3_5Template, "qwen3_5")
 
 _register_max_model_type(
     model_type="max_qwen2_5_vl",
