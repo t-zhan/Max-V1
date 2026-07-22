@@ -6,13 +6,15 @@ class RegHeadConfig(PretrainedConfig):
 
     def __init__(self, 
                  hidden_size=1024, 
-                 pred_len=8, 
-                 reg_head_bias=False, 
+                 pred_len=None,
+                 reg_head_bias=False,
+                 dropout=0.0,
                  **kwargs):
         super().__init__(**kwargs)
         self.hidden_size = hidden_size
         self.pred_len = pred_len
         self.reg_head_bias = reg_head_bias
+        self.dropout = dropout
 
 
 class MaxConfig(PretrainedConfig):
@@ -26,6 +28,7 @@ class MaxConfig(PretrainedConfig):
                  scheduled_sampling_ratio=0.0,
                  max_model_len=65536,
                  max_new_tokens=512,
+                 rollout_use_cache=True,
                  **kwargs):
         super().__init__(**kwargs)
         self.qwen_model_dir = qwen_model_dir
@@ -35,3 +38,4 @@ class MaxConfig(PretrainedConfig):
         self.max_model_len = max_model_len
         self.max_new_tokens = max_new_tokens
         self.scheduled_sampling_ratio = scheduled_sampling_ratio
+        self.rollout_use_cache = rollout_use_cache

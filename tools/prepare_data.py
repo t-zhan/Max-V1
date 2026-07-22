@@ -9,7 +9,7 @@ Data sources:
 
 Usage (from project root):
   bash tools/get_data.sh
-  python tools/prepare_data.py --vqa-dir data/Bench2Drive-VL-base --raw-dir data/Bench2Drive --out data/sft/max_sft_train.json
+  python tools/prepare_data.py --vqa-dir data/Bench2Drive-VL-base --raw-dir data/Bench2Drive --concat-dir data/concat_images --out data/sft/max_sft_train.json --enable-thinking true
 """
 import argparse, json, multiprocessing
 import re
@@ -89,7 +89,15 @@ def concat_images(cam_dict, save_dir, frame_stem):
     return front_path, back_path
 
 
-def build_cot_sample(vqa_json, prev_vqa_json, qdict_42, front_path, back_path, curr_anno):
+def build_cot_sample(
+    vqa_json,
+    prev_vqa_json,
+    qdict_42,
+    front_path,
+    back_path,
+    curr_anno,
+    enable_thinking,
+):
     inherit_list, context_list = find_context_for_question(
         qid=42, prev_vqa=prev_vqa_json, vqa=vqa_json,
         prev=GOT_PREV, order=GOT_ORDER, inherit=GOT_INHERIT,
@@ -103,11 +111,13 @@ def build_cot_sample(vqa_json, prev_vqa_json, qdict_42, front_path, back_path, c
     _, answer_str, final_dict = generate_sharegpt_CoT_unit(
         raw_dict, no_tags=False, curr_anno=curr_anno)
     answer_str = _remove_waypoint_outputs(answer_str)
+    if not enable_thinking:
+        answer_str = ""
     final_dict["messages"][1]["content"] = answer_str
     return final_dict
 
 
-def _process_scenario(vqa_dir, raw_dir, concat_dir, scenario):
+def _process_scenario(vqa_dir, raw_dir, concat_dir, enable_thinking, scenario):
     scenario_dir = raw_dir / scenario
     save_dir = concat_dir / scenario
     vqa_sorted = sorted((vqa_dir / scenario).glob("*.json"),
@@ -123,20 +133,28 @@ def _process_scenario(vqa_dir, raw_dir, concat_dir, scenario):
         cam_dict = build_camera_dict(scenario_dir, frame_stem)
         front_path, back_path = concat_images(cam_dict, save_dir, frame_stem)
         curr_anno = get_anno_path(str(raw_dir), scenario, int(frame_stem))
-        sample = build_cot_sample(vqa_json, prev_vqa_json, qdict_42, front_path, back_path, curr_anno)
+        sample = build_cot_sample(
+            vqa_json,
+            prev_vqa_json,
+            qdict_42,
+            front_path,
+            back_path,
+            curr_anno,
+            enable_thinking,
+        )
         sample["waypoints"] = waypoints
         samples.append(sample)
         prev_vqa_json = vqa_json
     return samples
 
 
-def create_sft_dataset(vqa_dir, raw_dir, concat_dir, workers):
+def create_sft_dataset(vqa_dir, raw_dir, concat_dir, workers, enable_thinking):
     vqa_dir = Path(vqa_dir)
 
     scenarios = sorted(p.name for p in vqa_dir.iterdir() if p.is_dir())
 
-    print(f"Processing {len(scenarios)} scenarios with {workers} workers")
-    process_scenario = partial(_process_scenario, vqa_dir, raw_dir, concat_dir)
+    print(f"Processing {len(scenarios)} scenarios with {workers} workers (enable_thinking={enable_thinking})")
+    process_scenario = partial(_process_scenario, vqa_dir, raw_dir, concat_dir, enable_thinking)
     with multiprocessing.Pool(workers) as pool:
         results = pool.map(process_scenario, scenarios)
     return [s for r in results for s in r]
@@ -149,13 +167,20 @@ def main():
     parser.add_argument("--concat-dir", default="./data/concat_images")
     parser.add_argument("--out", default="./data/sft/max_sft_train.json")
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--enable-thinking", required=True, choices=["true", "false"])
     args = parser.parse_args()
 
     vqa_dir = Path(args.vqa_dir).resolve()
     raw_dir = Path(args.raw_dir).resolve()
     concat_dir = Path(args.concat_dir).resolve()
     out = Path(args.out).resolve()
-    samples = create_sft_dataset(vqa_dir, raw_dir, concat_dir, args.workers)
+    samples = create_sft_dataset(
+        vqa_dir,
+        raw_dir,
+        concat_dir,
+        args.workers,
+        args.enable_thinking == "true",
+    )
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w") as f:
         json.dump(samples, f, indent=2, ensure_ascii=False)
