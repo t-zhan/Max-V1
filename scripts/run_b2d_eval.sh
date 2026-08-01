@@ -25,7 +25,7 @@ for g in $GPU_RANK_LIST; do
         --routes="$routes" \
         --repetitions=1 --track=SENSORS \
         --checkpoint="$SAVE_PATH/checkpoint_${i}.json" \
-        --agent="b2d_bridge" --agent-config="." --debug=0 --resume=True \
+        --agent="$PROJECT_ROOT/tools/b2dvl/utils" --agent-config="." --debug=0 --resume=True \
         --port="$port" --traffic-manager-port="$tm_port" --gpu-rank="$g" \
         --vlm-config="$PROJECT_ROOT/configs/max_config.json" \
         --timeout=100 \

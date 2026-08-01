@@ -6,11 +6,10 @@ n_samples=6000
 ratio=0.33
 split=val
 inference_mode=autoregressive  # teacher_forcing / autoregressive
-model_path=outputs/v32-20260622-092230/checkpoint-6240
 judge_cot=true
 
-torchrun --nproc_per_node=${NPROC_PER_NODE} tools/eval_open_loop.py \
-  --model-path $model_path \
+torchrun --nproc_per_node=${NPROC_PER_NODE} tools/b2dvl/eval_open_loop.py \
+  --model-path "${B2D_OPEN_LOOP_CHECKPOINT}" \
   --split $split \
   --ratio $ratio \
   --n-samples $n_samples \

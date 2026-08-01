@@ -8,8 +8,8 @@ Data sources:
   rethinklab/Bench2Drive       → data/Bench2Drive/
 
 Usage (from project root):
-  bash tools/get_data.sh
-  python tools/prepare_data.py --vqa-dir data/Bench2Drive-VL-base --raw-dir data/Bench2Drive --concat-dir data/concat_images --out data/sft/max_sft_train.json --enable-thinking true
+  bash scripts/get_data.sh
+  python tools/b2dvl/prepare_data_b2dvl.py --vqa-dir data/Bench2Drive-VL-base --raw-dir data/Bench2Drive --concat-dir data/concat_images --out data/sft/max_sft_train.json --enable-thinking true
 """
 import argparse, json, multiprocessing
 import re

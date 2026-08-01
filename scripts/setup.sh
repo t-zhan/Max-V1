@@ -13,4 +13,4 @@ else
 fi
 
 echo ""
-echo "Setup complete. Run: bash scripts/train.sh"
+echo "Setup complete. Run: bash scripts/sft.sh"

@@ -51,6 +51,11 @@ class MaxLoader(ModelLoader):
                 qwen_model_dir=model_dir,
                 qwen_model_family=self.QWEN_MODEL_FAMILY,
             )
+        config.pred_len = get_env_args(
+            "pred_len",
+            int,
+            config.pred_len,
+        )
         config.scheduled_sampling_ratio = get_env_args(
             "scheduled_sampling_ratio",
             float,
@@ -90,6 +95,7 @@ class MaxLoader(ModelLoader):
         else:
             model = Max(config, is_finetuned=False, **model_kwargs)
 
+        config.qwen_config = model.backbone.config.to_dict()
         patch_get_input_embeddings(model.backbone.model.visual, "patch_embed")
         return model
 

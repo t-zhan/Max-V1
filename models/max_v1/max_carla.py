@@ -289,7 +289,7 @@ class Max(PreTrainedModel):
         outputs["lm_loss"] = lm_loss.detach()
         return outputs
 
-    def _predict_waypoints(
+    def _rollout_waypoints(
         self,
         input_ids,
         attention_mask,
@@ -315,9 +315,10 @@ class Max(PreTrainedModel):
         position_ids = position_ids.to(point_weight.device)
         past_key_values = None
         next_point = None
+        rollout_use_cache = self.config.rollout_use_cache
 
         for step in range(self.config.pred_len):
-            if self.config.use_cache and step > 0:
+            if rollout_use_cache and step > 0:
                 outputs = self.backbone.model(
                     inputs_embeds=self.point_embed_layer(next_point),
                     attention_mask=self._extend_attention_mask(attention_mask, step + 1),
@@ -342,7 +343,7 @@ class Max(PreTrainedModel):
                         attention_mask,
                         current_points.shape[1],
                     ),
-                    use_cache=self.config.use_cache,
+                    use_cache=rollout_use_cache,
                 )
 
             past_key_values = outputs.past_key_values
@@ -381,28 +382,11 @@ class Max(PreTrainedModel):
         return template
 
     @torch.inference_mode()
-    def carla_generate(self, rgbs, ego_speeds, command_idxs, enable_thinking=True):
-        encoded_list = []
-        command_texts = []
-        for rgb, speed, cmd in zip(rgbs, ego_speeds, command_idxs):
-            command_text = COMMAND_TO_TEXT[int(cmd)]
-            command_texts.append(command_text)
-            front_concat, back_concat = self._concat_camera_images(rgb)
-            user_content = (
-                f"{B2DVL_IMAGE_DESC}<image><image>"
-                "Use information above to answer:\n"
-                f"The ego vehicle is driving at the speed of {float(speed):.1f} m/s, "
-                f"and it wants to {command_text}. "
-                f"{B2DVL_WAYPOINT_QUESTION}"
-            )
-            sample = {
-                "messages": [{"role": "user", "content": user_content}],
-                "system": MAX_DEFAULT_SYSTEM,
-                "images": [front_concat, back_concat],
-                "chat_template_kwargs": {"enable_thinking": enable_thinking},
-            }
-            encoded_list.append(self.inference_template.encode(TemplateInputs.from_dict(sample)))
-
+    def generate_waypoints(self, samples):
+        encoded_list = [
+            self.inference_template.encode(TemplateInputs.from_dict(sample))
+            for sample in samples
+        ]
         batch = self.inference_template.data_collator(encoded_list)
         device = next(self.parameters()).device
         input_ids = batch["input_ids"].to(device)
@@ -432,13 +416,38 @@ class Max(PreTrainedModel):
             (mm_token_type_ids, torch.zeros_like(generated_ids)),
             dim=-1,
         )
-        pred_waypoints = self._predict_waypoints(
+        pred_waypoints = self._rollout_waypoints(
             cot_input_ids,
             cot_attention_mask,
             cot_mm_token_type_ids,
             pixel_values,
             image_grid_thw,
         )
+        return pred_waypoints, cot_texts
+
+    @torch.inference_mode()
+    def carla_generate(self, rgbs, ego_speeds, command_idxs, enable_thinking=True):
+        samples = []
+        command_texts = []
+        for rgb, speed, cmd in zip(rgbs, ego_speeds, command_idxs):
+            command_text = COMMAND_TO_TEXT[int(cmd)]
+            command_texts.append(command_text)
+            front_concat, back_concat = self._concat_camera_images(rgb)
+            user_content = (
+                f"{B2DVL_IMAGE_DESC}<image><image>"
+                "Use information above to answer:\n"
+                f"The ego vehicle is driving at the speed of {float(speed):.1f} m/s, "
+                f"and it wants to {command_text}. "
+                f"{B2DVL_WAYPOINT_QUESTION}"
+            )
+            samples.append({
+                "messages": [{"role": "user", "content": user_content}],
+                "system": MAX_DEFAULT_SYSTEM,
+                "images": [front_concat, back_concat],
+                "chat_template_kwargs": {"enable_thinking": enable_thinking},
+            })
+
+        pred_waypoints, cot_texts = self.generate_waypoints(samples)
         return pred_waypoints, command_texts, cot_texts
 
     def _process_embeddings(self, input_ids, pixel_values, image_grid_thw):

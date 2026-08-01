@@ -2,10 +2,10 @@
 """Open-loop L2 evaluation for Max-V1 using Bench2Drive raw data.
 
 Usage:
-  torchrun --nproc_per_node=4 tools/eval_open_loop.py \
+  torchrun --nproc_per_node=4 tools/b2dvl/eval_open_loop.py \
     --model-path outputs/v32-.../checkpoint-1560 --split train --ratio 0.05 --batch-size 4
   torchrun --nnodes=2 --nproc_per_node=8 --node_rank=0 --master_addr=<ip> \
-    tools/eval_open_loop.py --model-path ... --split val --ratio 0.1
+    tools/b2dvl/eval_open_loop.py --model-path ... --split val --ratio 0.1
 """
 import argparse, gzip, json, os, random, re, urllib.request
 from pathlib import Path

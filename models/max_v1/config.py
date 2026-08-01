@@ -27,7 +27,7 @@ class MaxConfig(PretrainedConfig):
                  use_cache=False,
                  scheduled_sampling_ratio=0.0,
                  max_model_len=65536,
-                 max_new_tokens=512,
+                 max_new_tokens=65536,
                  rollout_use_cache=True,
                  **kwargs):
         super().__init__(**kwargs)

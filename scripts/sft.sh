@@ -22,6 +22,10 @@ TRAIN_CMD=(
     --tuner_type "${TUNER_TYPE}"
     --freeze_vit "${FREEZE_VIT}"
     --target_modules ${TARGET_MODULES}
+    --add_non_thinking_prefix false
+
+    # Special tokens
+    --new_special_tokens "${NEW_SPECIAL_TOKENS}"
 
     # Optimization
     --num_train_epochs "${NUM_TRAIN_EPOCHS}"
@@ -39,6 +43,7 @@ TRAIN_CMD=(
     # Logging
     --logging_steps "${LOGGING_STEPS}"
     --report_to ${REPORT_TO}
+    --swanlab_project "${SWANLAB_PROJECT_NAME}"
 
     # Plugins and callbacks
     --external_plugins ${EXTERNAL_PLUGINS}

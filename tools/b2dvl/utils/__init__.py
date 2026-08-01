@@ -1,4 +1,4 @@
-from b2d_bridge.autopilot import MaxAutoPilot
+from .autopilot import MaxAutoPilot
 
 
 def get_entry_point():
