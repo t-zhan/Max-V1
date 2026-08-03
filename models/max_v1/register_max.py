@@ -23,9 +23,10 @@ from models.max_v1.max_carla import Max
 from models.max_v1.prompt_template import MAX_DEFAULT_SYSTEM
 
 
-MAX_TEMPLATE_QWEN2_5 = "max_vl_qwen2_5"
-MAX_TEMPLATE_QWEN3 = "max_vl_qwen3"
-MAX_TEMPLATE_QWEN3_5 = "max_vl_qwen3_5"
+MAX_TEMPLATE_QWEN2_5 = "max_qwen2_5_vl_tpl"
+MAX_TEMPLATE_QWEN3 = "max_qwen3_vl_tpl"
+MAX_TEMPLATE_QWEN3_5 = "max_qwen3_5_tpl"
+MAX_TEMPLATE_MIMO_EMBODIED = "max_mimo_embodied_tpl"
 MAX_ARCH = "max_vl"
 
 
@@ -142,6 +143,19 @@ class MaxQwen3_5Template(_MaxTemplateMixin, Qwen3_5Template):
     pass
 
 
+class MaxMiMoEmbodiedTemplate(_MaxTemplateMixin, Qwen2_5VLTemplate):
+    def _encode(self, inputs):
+        if inputs.chat_template_kwargs.get("enable_thinking", True) is False:
+            for message in reversed(inputs.messages):
+                if message["role"] != "user":
+                    continue
+                content = message["content"].rstrip()
+                if not content.endswith("/no_think"):
+                    message["content"] = f"{content} /no_think"
+                break
+        return super()._encode(inputs)
+
+
 def _register_max_template(template_type, template_cls, base_template_type):
     base_meta = TEMPLATE_MAPPING[base_template_type]
     register_template(replace(
@@ -189,6 +203,7 @@ register_model_arch(
 _register_max_template(MAX_TEMPLATE_QWEN2_5, MaxQwen2_5Template, "qwen2_5_vl")
 _register_max_template(MAX_TEMPLATE_QWEN3, MaxQwen3Template, "qwen3_vl")
 _register_max_template(MAX_TEMPLATE_QWEN3_5, MaxQwen3_5Template, "qwen3_5")
+_register_max_template(MAX_TEMPLATE_MIMO_EMBODIED, MaxMiMoEmbodiedTemplate, "mimo_vl",)
 
 _register_max_model_type(
     model_type="max_qwen2_5_vl",
@@ -209,4 +224,11 @@ _register_max_model_type(
     model_id="Qwen/Qwen3.5-0.8B",
     template_type=MAX_TEMPLATE_QWEN3_5,
     loader_cls=_make_loader("qwen3_5"),
+)
+
+_register_max_model_type(
+    model_type="max_mimo_embodied",
+    model_id="XiaomiMiMo/MiMo-Embodied-7B",
+    template_type=MAX_TEMPLATE_MIMO_EMBODIED,
+    loader_cls=_make_loader("qwen2_5_vl"),
 )

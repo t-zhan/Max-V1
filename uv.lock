@@ -1244,7 +1244,7 @@ requires-dist = [
     { name = "qwen-vl-utils" },
     { name = "scikit-image" },
     { name = "shapely", specifier = "==1.8.5" },
-    { name = "swanlab" },
+    { name = "swanlab", specifier = ">=0.9.0" },
     { name = "torch", marker = "extra == 'cu124'", specifier = "==2.6.0+cu124", index = "https://download.pytorch.org/whl/cu124", conflict = { package = "max-v1", extra = "cu124" } },
     { name = "torch", marker = "extra == 'cu126'", specifier = "==2.12.0+cu126", index = "https://download.pytorch.org/whl/cu126", conflict = { package = "max-v1", extra = "cu126" } },
     { name = "torchvision", marker = "extra == 'cu124'", specifier = "==0.21.0+cu124", index = "https://download.pytorch.org/whl/cu124", conflict = { package = "max-v1", extra = "cu124" } },
@@ -2322,6 +2322,12 @@ wheels = [
 ]
 
 [[package]]
+name = "pwinput"
+version = "1.0.3"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/4b/c9/f6d03c2214c282251baa38c6be08f5b9f81f1ea488716cd2335e7e190b58/pwinput-1.0.3.tar.gz", hash = "sha256:ca1a8bd06e28872d751dbd4132d8637127c25b408ea3a349377314a5491426f3", size = 4433, upload-time = "2023-02-16T17:04:14.592Z" }
+
+[[package]]
 name = "py-cpuinfo"
 version = "9.0.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
@@ -2901,7 +2907,7 @@ wheels = [
 
 [[package]]
 name = "swanlab"
-version = "0.8.2"
+version = "0.9.2"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
     { name = "click" },
@@ -2910,6 +2916,7 @@ dependencies = [
     { name = "platformdirs" },
     { name = "protobuf" },
     { name = "psutil" },
+    { name = "pwinput" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyecharts" },
@@ -2921,9 +2928,9 @@ dependencies = [
     { name = "watchdog" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a5/65/15d9669b0e41acdc495d616ea0b939a2724e0208f13892a37f4199f1268e/swanlab-0.8.2.tar.gz", hash = "sha256:b7c32905c7ab62b5da98b8a1e82ec217c60a8df96c9e29c7c704c96577f683fd", size = 14765831, upload-time = "2026-06-11T11:56:35.601Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/18/22/025cf0f1c060d92aa88bb25738edc8a4d8cfe5ccf4f4f472ed0c9a8c59f0/swanlab-0.9.2.tar.gz", hash = "sha256:1365f9d1813dae349d02ec90378b617a007efdcf6d755c37e6aa5e51d4e4355a", size = 14774772, upload-time = "2026-07-29T10:12:57.64Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/69/22/eaf58d17e62bfd3183fe7db681d89ed9b4d49b5dfa99f35ca213f3106c3d/swanlab-0.8.2-py3-none-any.whl", hash = "sha256:0bc7636a27f9d44273580fdd45d80fcad067c5e2770137376449bf22dcfe0bf8", size = 489851, upload-time = "2026-06-11T11:56:33.831Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/42/77/927f438b973cc4009015d7e5ad55d897b3341e5ad8cba78d1479b9ca6a1c/swanlab-0.9.2-py3-none-any.whl", hash = "sha256:f342b2d56a5cb80621426630805f041091394e4a6227168679d6e4e0d799b5ca", size = 505838, upload-time = "2026-07-29T10:12:54.706Z" },
 ]
 
 [[package]]

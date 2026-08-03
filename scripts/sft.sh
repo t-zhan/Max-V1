@@ -10,6 +10,7 @@ TRAIN_CMD=(
     # Model
     --model "${MODEL_DIR}/${MODEL_NAME}"
     --model_type "${MODEL_TYPE}"
+    --torch_dtype "${TORCH_DTYPE}"
 
     # Dataset and preprocessing
     --dataset ${DATASET}
