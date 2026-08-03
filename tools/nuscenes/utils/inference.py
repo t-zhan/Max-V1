@@ -96,14 +96,24 @@ def _infer(model, loader, system_prompt, enable_thinking, rank):
             }
             for _, _, messages, images in batch
         ]
-        pred_waypoints, _ = model.generate_waypoints(samples)
+        pred_waypoints, generated_texts = model.generate_waypoints(samples)
         predictions = pred_waypoints.detach().cpu().float().numpy()
-        for (index, token, _, _), prediction in zip(batch, predictions):
+        for (index, token, _, _), prediction, generated_text in zip(
+            batch,
+            predictions,
+            generated_texts,
+            strict=True,
+        ):
             if prediction.shape != (6, 2) or not np.isfinite(prediction).all():
                 raise ValueError(
                     f"Invalid waypoint prediction for {token}: {prediction.shape}"
                 )
-            results.append((index, token, prediction.astype(np.float32, copy=False)))
+            results.append((
+                index,
+                token,
+                prediction.astype(np.float32, copy=False),
+                generated_text,
+            ))
     return results
 
 
@@ -118,23 +128,38 @@ def _gather_results(results, world_size):
 
 def _build_predictions(results, records):
     expected_tokens = {record["token"] for record in records}
-    prediction_tokens = {token for _, token, _ in results}
+    prediction_tokens = {token for _, token, _, _ in results}
     if prediction_tokens != expected_tokens or len(results) != len(records):
         raise ValueError(
             "Prediction tokens do not match nuscenes_infos_val.pkl "
             f"({len(prediction_tokens)}/{len(expected_tokens)})"
         )
 
-    return {token: trajectory for _, token, trajectory in results}
+    predictions = {
+        token: trajectory
+        for _, token, trajectory, _ in results
+    }
+    generated_texts = {
+        token: generated_text
+        for _, token, _, generated_text in results
+    }
+    return predictions, generated_texts
 
 
-def save_predictions(predictions, output_dir):
+def save_predictions(predictions, generated_texts, output_dir):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / "max_pred_trajs.pkl"
-    with output_path.open("wb") as file:
+
+    trajectory_path = output_dir / "max_pred_trajs.pkl"
+    with trajectory_path.open("wb") as file:
         pickle.dump(predictions, file, protocol=2)
-    print(f"Saved {len(predictions)} trajectories to {output_path}")
+
+    text_path = output_dir / "max_generated_texts.pkl"
+    with text_path.open("wb") as file:
+        pickle.dump(generated_texts, file, protocol=2)
+
+    print(f"Saved {len(predictions)} trajectories to {trajectory_path}")
+    print(f"Saved {len(generated_texts)} generated texts to {text_path}")
 
 
 def run_inference(
@@ -143,7 +168,7 @@ def run_inference(
     info_pkl,
     batch_size=1,
     num_workers=8,
-    enable_thinking=True,
+    enable_thinking=False,
     n_samples=None,
     seed=42,
 ):

@@ -539,6 +539,7 @@ def planning_eval(
     seed=42,
     checkpoint=None,
     prediction_pkl=None,
+    enable_thinking=None,
 ):
     infos = _load_info_pkl(info_pkl)
     prediction_tokens = set(predictions)
@@ -606,6 +607,8 @@ def planning_eval(
         metadata["checkpoint"] = checkpoint
     if prediction_pkl is not None:
         metadata["prediction_pkl"] = prediction_pkl
+    if enable_thinking is not None:
+        metadata["enable_thinking"] = enable_thinking
     metadata.update({
         "total_samples": len(infos),
         "evaluated_samples": len(indexed_infos),

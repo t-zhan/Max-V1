@@ -28,7 +28,8 @@ data/UniDriveVLA_Data/nuscenes_infos_val.pkl
 ## Max 推理与评测
 
 checkpoint 必须配置 `pred_len=6`。UniAD/STP-3 评测默认读取 UniDriveVLA
-原版 `data/UniDriveVLA_Data/planing_gt_segmentation_val`。
+原版 `data/UniDriveVLA_Data/planing_gt_segmentation_val`。正常推理默认关闭
+thinking；需要时显式传入 `--enable-thinking true`。
 
 ```bash
 torchrun --nproc_per_node=8 tools/nuscenes/test.py \
@@ -48,17 +49,20 @@ nuScenes 推理与数据准备统一使用
 `models.max_v1.prompt_template.NUSCENES_SYSTEM` 作为 system prompt。
 
 `--result-dir` 默认为 `results/`。每次运行会创建格式为
-`YYYYMMDD-HHMMSS` 的时间戳子目录，并将推理结果保存为
-`RESULT_DIR/YYYYMMDD-HHMMSS/max_pred_trajs.pkl`，格式为：
+`YYYYMMDD-HHMMSS` 的时间戳子目录，并将轨迹和生成文本分别保存为
+`max_pred_trajs.pkl` 与 `max_generated_texts.pkl`：
 
 ```python
 {sample_token: np.ndarray(shape=(6, 2), dtype=np.float32)}
+
+{sample_token: str}
 ```
 
 同时指定 `--eval` 时，评测结果保存在同一时间戳子目录的
 `planning_metrics.json`。仅推理时移除 `--eval`。通过
 `--seg-pkl` 可以覆盖默认的 segmentation PKL 路径。`--n-samples`
 使用 `--seed` 从全量 val 集中随机选择子集，省略时运行全部样本。
+metadata 会记录正常推理使用的 `enable_thinking`。
 
 ## 评测已有预测 PKL
 
@@ -76,7 +80,8 @@ python tools/nuscenes/test.py \
 覆盖已有预测 PKL。评测 JSON 的 metadata 会记录 `prediction_pkl`、
 完整测试集的 `total_samples`，以及实际参与评测的
 `evaluated_samples`。STRICT、UniAD 和 STP-3 分别通过
-`valid_samples` 记录各自有效的评测样本数。
+`valid_samples` 记录各自有效的评测样本数。未传
+`--enable-thinking` 时不记录该字段。
 
 与 UniDriveVLA README 对标时，使用 STP-3 表格中的 `L2` 和
 `obj_box_col`（`Col`，百分比）结果。

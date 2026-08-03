@@ -2,6 +2,7 @@
 """Run Max nuScenes inference and UniDriveVLA-aligned planning evaluation."""
 
 import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -48,8 +49,9 @@ def _parse_args(argv=None):
     )
     parser.add_argument(
         "--enable-thinking",
-        default="true",
-        choices=["true", "false"],
+        type=json.loads,
+        choices=(True, False),
+        default=None,
     )
     args = parser.parse_args(argv)
 
@@ -59,6 +61,8 @@ def _parse_args(argv=None):
     else:
         if not args.model_path:
             parser.error("--model-path is required when --pred-pkl is omitted")
+        if args.enable_thinking is None:
+            args.enable_thinking = False
     return args
 
 
@@ -75,24 +79,25 @@ def main(argv=None):
             save_predictions,
         )
 
-        predictions = run_inference(
+        outputs = run_inference(
             model_path=args.model_path,
             traj_file=args.traj_file,
             info_pkl=args.info_pkl,
             batch_size=args.batch_size,
             num_workers=args.num_workers,
-            enable_thinking=args.enable_thinking == "true",
+            enable_thinking=args.enable_thinking,
             n_samples=args.n_samples,
             seed=args.seed,
         )
-        if predictions is None:
+        if outputs is None:
             return
+        predictions, generated_texts = outputs
 
     result_dir = Path(args.result_dir) / datetime.now().strftime(
         "%Y%m%d-%H%M%S"
     )
     if not args.pred_pkl:
-        save_predictions(predictions, result_dir)
+        save_predictions(predictions, generated_texts, result_dir)
 
     if args.eval:
         from tools.nuscenes.utils.planning_eval import (
@@ -108,6 +113,7 @@ def main(argv=None):
             seed=args.seed,
             checkpoint=None if args.pred_pkl else args.model_path,
             prediction_pkl=args.pred_pkl,
+            enable_thinking=args.enable_thinking,
         )
         save_planning_metrics(metrics, result_dir)
 
