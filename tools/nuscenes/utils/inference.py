@@ -3,6 +3,7 @@
 import json
 import os
 import pickle
+from datetime import timedelta
 from pathlib import Path
 
 import numpy as np
@@ -78,10 +79,14 @@ def _collate(batch):
 
 
 def _init_distributed():
-    dist.init_process_group(backend="nccl")
-    rank, world_size = dist.get_rank(), dist.get_world_size()
-    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
-    return rank, world_size
+    local_rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(local_rank)
+    dist.init_process_group(
+        backend="nccl",
+        timeout=timedelta(hours=2),
+        device_id=torch.device("cuda", local_rank),
+    )
+    return dist.get_rank(), dist.get_world_size()
 
 
 def _infer(model, loader, system_prompt, enable_thinking, rank):
@@ -131,7 +136,7 @@ def _build_predictions(results, records):
     prediction_tokens = {token for _, token, _, _ in results}
     if prediction_tokens != expected_tokens or len(results) != len(records):
         raise ValueError(
-            "Prediction tokens do not match nuscenes_infos_val.pkl "
+            "Prediction tokens do not match the selected nuScenes dataset "
             f"({len(prediction_tokens)}/{len(expected_tokens)})"
         )
 
@@ -169,6 +174,7 @@ def run_inference(
     batch_size=1,
     num_workers=8,
     enable_thinking=False,
+    max_new_tokens=None,
     n_samples=None,
     seed=42,
 ):
@@ -192,6 +198,8 @@ def run_inference(
         )
 
         model = Max.from_pretrained(model_path).eval().cuda()
+        if max_new_tokens is not None:
+            model.config.max_new_tokens = max_new_tokens
         if model.config.pred_len != 6:
             raise ValueError(
                 "nuScenes evaluation requires pred_len=6, "

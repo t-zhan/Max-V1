@@ -6,11 +6,13 @@ set -euo pipefail
 
 # Resume the configured SwanLab run.
 export SWANLAB_RESUME="must"
+export SFT_RESUME_CHECKPOINT=outputs/v53-20260803-183356/checkpoint-666
+export SWANLAB_RUN_ID=pxvgxu1n
 
 RUN_OUTPUT_DIR="$(dirname "${SFT_RESUME_CHECKPOINT}")"
 
-NUM_TRAIN_EPOCHS=20
-LEARNING_RATE=1e-6
+# NUM_TRAIN_EPOCHS=20
+# LEARNING_RATE=1e-6
 # MAX_GRAD_NORM=50.0
 
 # SAVE_STRATEGY=steps
@@ -20,8 +22,8 @@ LEARNING_RATE=1e-6
 # export WARMUP_SCHEDULED_SAMPLING_STEPS=200
 # export WARMUP_SCHEDULED_SAMPLING_RATIO=0.5
 
-EXTERNAL_PLUGINS="models/max_v1/register_max.py models/max_v1/max_callback.py"
-CALLBACKS="max_loss_log"  # "max_loss_log max_rollout_schedule"
+# EXTERNAL_PLUGINS="models/max_v1/register_max.py models/max_v1/max_callback.py"
+# CALLBACKS="max_loss_log"  # "max_loss_log max_rollout_schedule"
 
 TRAIN_CMD=(
     swift sft

@@ -507,6 +507,9 @@ def _prepare_predictions(raw_predictions, infos):
 
 
 def _load_occupancy_map(path):
+    if not path or not Path(path).exists():
+        print(f"[WARNING] BEV seg pkl not found at {path}")
+        return None
     with open(path, "rb") as file:
         occupancy_map = pickle.load(file)
     for token in occupancy_map:
@@ -567,7 +570,9 @@ def planning_eval(
     occupancy_map = _load_occupancy_map(seg_pkl)
 
     strict_metric = PlanningMetric()
-    loose_metric = PlanningMetricLoose()
+    loose_metric = (
+        PlanningMetricLoose() if occupancy_map is not None else None
+    )
 
     for index, info in tqdm(indexed_infos, desc="Evaluating planning"):
         prediction = predictions[info["token"]]
@@ -588,20 +593,18 @@ def planning_eval(
                 future_boxes,
             )
 
-        segmentation = _get_occupancy(occupancy_map, info["token"])
-        if segmentation is not None:
-            loose_metric.update(
-                prediction.clone(),
-                gt_trajectory.clone(),
-                gt_mask.clone(),
-                segmentation,
-            )
+        if loose_metric is not None:
+            segmentation = _get_occupancy(occupancy_map, info["token"])
+            if segmentation is not None:
+                loose_metric.update(
+                    prediction.clone(),
+                    gt_trajectory.clone(),
+                    gt_mask.clone(),
+                    segmentation,
+                )
 
     strict_results = strict_metric.compute()
-    loose_results = loose_metric.compute()
     strict_summary = print_strict_format(strict_results)
-    uniad_summary = print_uniad_format(loose_results)
-    stp3_summary = print_stp3_format(loose_results)
     metadata = {}
     if checkpoint is not None:
         metadata["checkpoint"] = checkpoint
@@ -615,7 +618,7 @@ def planning_eval(
         "seed": seed,
         "collision_unit": "fraction",
     })
-    return {
+    metrics = {
         "metadata": metadata,
         "strict": {
             "valid_samples": int(strict_metric.total.item()),
@@ -625,23 +628,34 @@ def planning_eval(
             },
             "summary": strict_summary,
         },
-        "uniad": {
-            "valid_samples": int(loose_metric.total.item()),
-            "per_step": {
-                key: value.tolist()
-                for key, value in loose_results.items()
-            },
-            "summary": uniad_summary,
-        },
-        "stp3": {
-            "valid_samples": int(loose_metric.total.item()),
-            "per_step": {
-                key: value.tolist()
-                for key, value in loose_results.items()
-            },
-            "summary": stp3_summary,
-        },
     }
+    if loose_metric is None:
+        return metrics
+
+    loose_results = loose_metric.compute()
+    uniad_summary = print_uniad_format(loose_results)
+    stp3_summary = print_stp3_format(loose_results)
+    metrics.update(
+        {
+            "uniad": {
+                "valid_samples": int(loose_metric.total.item()),
+                "per_step": {
+                    key: value.tolist()
+                    for key, value in loose_results.items()
+                },
+                "summary": uniad_summary,
+            },
+            "stp3": {
+                "valid_samples": int(loose_metric.total.item()),
+                "per_step": {
+                    key: value.tolist()
+                    for key, value in loose_results.items()
+                },
+                "summary": stp3_summary,
+            },
+        }
+    )
+    return metrics
 
 
 def save_planning_metrics(metrics, output_dir):

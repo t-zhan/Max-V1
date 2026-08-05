@@ -34,10 +34,7 @@ def _parse_args(argv=None):
         action="store_true",
         help="Run STRICT, UniAD, and STP-3 planning evaluation",
     )
-    parser.add_argument(
-        "--seg-pkl",
-        default="data/UniDriveVLA_Data/planing_gt_segmentation_val",
-    )
+    parser.add_argument("--seg-pkl")
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--num-workers", type=int, default=8)
     parser.add_argument("--n-samples", "--n_samples", type=int)
@@ -53,6 +50,7 @@ def _parse_args(argv=None):
         choices=(True, False),
         default=None,
     )
+    parser.add_argument("--max-new-tokens", type=int)
     args = parser.parse_args(argv)
 
     if args.pred_pkl:
@@ -86,6 +84,7 @@ def main(argv=None):
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             enable_thinking=args.enable_thinking,
+            max_new_tokens=args.max_new_tokens,
             n_samples=args.n_samples,
             seed=args.seed,
         )
