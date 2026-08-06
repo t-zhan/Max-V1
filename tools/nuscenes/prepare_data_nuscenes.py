@@ -29,12 +29,13 @@ from pathlib import Path
 from tqdm import tqdm
 
 from models.max_v1.prompt_template import NUSCENES_SYSTEM
+from tools.nuscenes.utils import strip_ego_status
 
 _WAYPOINT_RE = re.compile(r"\((-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\)")
 
 
 def _build_sample(vqa: dict | None, traj: dict, root: Path,
-                  enable_thinking: bool,
+                  enable_thinking: bool, ego_status: bool,
                   system_prompt: str, cot_notice: str) -> dict:
     """为单个匹配帧构造一条 CoT SFT 样本。vqa=None 时跳过 CoT。"""
     if not enable_thinking or vqa is None:
@@ -69,9 +70,13 @@ def _build_sample(vqa: dict | None, traj: dict, root: Path,
         images = [str((root / p[p.find("samples/"):]).resolve())
                   for p in traj["image"]]
 
+    user_content = traj["conversations"][0]["value"]
+    if not ego_status:
+        user_content = strip_ego_status(user_content)
+
     return {
         "messages": [
-            {"role": "user", "content": traj["conversations"][0]["value"]},
+            {"role": "user", "content": user_content},
             {"role": "assistant", "content": cot},
         ],
         "images": images,
@@ -90,8 +95,8 @@ def main():
     parser.add_argument("--out", required=True)
     parser.add_argument("--enable-thinking", required=True,
                         choices=["true", "false"])
-    parser.add_argument("--cot-notice-path",
-                        default="tools/b2dvl/prepare_data_b2dvl.py")
+    parser.add_argument("--ego-status", required=True,
+                        choices=["true", "false"])
     parser.add_argument("--pkl-file",
                         default="data/nuscenes/nuscenes_infos_train.pkl")
     parser.add_argument("--limit", type=int, default=None)
@@ -101,12 +106,9 @@ def main():
     vqa_file = Path(args.vqa_file)
     nuscenes_root = Path(args.nuscenes_root)
     enable_thinking = args.enable_thinking == "true"
+    ego_status = args.ego_status == "true"
 
-    cot_notice_src = Path(args.cot_notice_path).read_text("utf-8")
-    m = re.search(
-        r'FINAL_TRAJECTORY_NOTICE\s*=\s*\(\s*\n?\s*"([^"]+)"\s*\n?\s*\)',
-        cot_notice_src)
-    cot_notice = m.group(1) if m else ""
+    cot_notice = "The final trajectory will be predicted by the waypoint regression head."
 
     # PKL: path→token + prev_token→next 一步构建
     print(f"加载 PKL: {args.pkl_file}")
@@ -164,7 +166,8 @@ def main():
                     continue
                 samples.append(
                     _build_sample(vqa, traj, nuscenes_root,
-                                  enable_thinking, NUSCENES_SYSTEM, cot_notice))
+                                  enable_thinking, ego_status,
+                                  NUSCENES_SYSTEM, cot_notice))
                 if args.limit and len(samples) >= args.limit:
                     break
         print(f"  → {len(samples)} 条")
@@ -172,7 +175,8 @@ def main():
         for traj in tqdm(traj_index.values(), desc="构造样本 (non-thinking)"):
             samples.append(
                 _build_sample(None, traj, nuscenes_root,
-                              enable_thinking, NUSCENES_SYSTEM, cot_notice))
+                              enable_thinking, ego_status,
+                              NUSCENES_SYSTEM, cot_notice))
             if args.limit and len(samples) >= args.limit:
                 break
         print(f"  → {len(samples)} 条")

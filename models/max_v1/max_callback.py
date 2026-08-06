@@ -28,7 +28,7 @@ class MaxLossLogCallback(TrainerCallback):
 
             mode = "train" if trainer.model.training else "eval"
             metrics = trainer.custom_metrics[mode]
-            for name in ("lm_loss", "reg_loss", "rollout_gt_mse", "rollout_pred_mse"):
+            for name in ("lm_loss", "reg_loss", "uniad_l2_avg"):
                 value = _get_output_value(outputs, name)
                 if value is not None:
                     metrics[name].update(value)

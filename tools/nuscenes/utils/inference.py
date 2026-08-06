@@ -3,6 +3,7 @@
 import json
 import os
 import pickle
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from tqdm import tqdm
 
 from models.max_v1.prompt_template import NUSCENES_SYSTEM
 from tools.nuscenes.utils import select_samples
+from tools.nuscenes.utils import strip_ego_status
 
 
 def _sample_path_key(path):
@@ -35,7 +37,7 @@ def _load_jsonl_by_front_image(traj_file):
     return rows
 
 
-def _load_records(info_pkl, traj_file):
+def _load_records(info_pkl, traj_file, ego_status=True):
     with open(info_pkl, "rb") as file:
         infos = sorted(pickle.load(file)["infos"], key=lambda info: info["timestamp"])
     rows = _load_jsonl_by_front_image(traj_file)
@@ -49,6 +51,8 @@ def _load_records(info_pkl, traj_file):
             for message in row["conversations"]
             if message["from"] == "human"
         )
+        if not ego_status:
+            user_content = strip_ego_status(user_content)
         records.append({
             "index": index,
             "token": info["token"],
@@ -174,6 +178,7 @@ def run_inference(
     batch_size=1,
     num_workers=8,
     enable_thinking=False,
+    ego_status=True,
     max_new_tokens=None,
     n_samples=None,
     seed=42,
@@ -183,7 +188,7 @@ def run_inference(
     rank, world_size = _init_distributed()
     try:
         records = select_samples(
-            _load_records(info_pkl, traj_file),
+            _load_records(info_pkl, traj_file, ego_status),
             n_samples,
             seed,
         )

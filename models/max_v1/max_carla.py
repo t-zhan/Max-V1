@@ -261,6 +261,12 @@ class Max(PreTrainedModel):
         outputs["pred_waypoints"] = predicted_points
         reg_loss = mse_loss(predicted_points, waypoints)
         outputs["reg_loss"] = reg_loss.detach()
+
+        with torch.no_grad():
+            outputs["uniad_l2_avg"] = torch.sqrt(
+                ((predicted_points[:, 1::2] - waypoints[:, 1::2]) ** 2).sum(dim=-1)
+            ).mean()
+
         if rollout_points is not None:
             with torch.no_grad():
                 outputs["rollout_gt_mse"] = mse_loss(

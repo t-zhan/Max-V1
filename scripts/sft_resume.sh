@@ -6,12 +6,11 @@ set -euo pipefail
 
 # Resume the configured SwanLab run.
 export SWANLAB_RESUME="must"
-export SFT_RESUME_CHECKPOINT=outputs/v53-20260803-183356/checkpoint-666
-export SWANLAB_RUN_ID=pxvgxu1n
+export SWANLAB_RUN_ID="${RESUME_SWANLAB_ID}"
 
-RUN_OUTPUT_DIR="$(dirname "${SFT_RESUME_CHECKPOINT}")"
+RUN_OUTPUT_DIR="${RESUME_SFT_CHECKPOINT%/*}"
+NUM_TRAIN_EPOCHS="${RESUME_NUM_TRAIN_EPOCHS}"
 
-# NUM_TRAIN_EPOCHS=20
 # LEARNING_RATE=1e-6
 # MAX_GRAD_NORM=50.0
 
@@ -23,14 +22,14 @@ RUN_OUTPUT_DIR="$(dirname "${SFT_RESUME_CHECKPOINT}")"
 # export WARMUP_SCHEDULED_SAMPLING_RATIO=0.5
 
 # EXTERNAL_PLUGINS="models/max_v1/register_max.py models/max_v1/max_callback.py"
-# CALLBACKS="max_loss_log"  # "max_loss_log max_rollout_schedule"
+# CALLBACKS="max_loss_log max_rollout_schedule"
 
 TRAIN_CMD=(
     swift sft
 
     # Model
-    --model "${SFT_RESUME_CHECKPOINT}"
-    --resume_from_checkpoint "${SFT_RESUME_CHECKPOINT}"
+    --model "${RESUME_SFT_CHECKPOINT}"
+    --resume_from_checkpoint "${RESUME_SFT_CHECKPOINT}"
     --model_type "${MODEL_TYPE}"
 
     # Dataset and preprocessing
@@ -45,7 +44,7 @@ TRAIN_CMD=(
     --freeze_vit "${FREEZE_VIT}"
     --freeze_llm "${FREEZE_LLM}"
     --target_modules ${TARGET_MODULES}
-    --add_non_thinking_prefix false
+    --add_non_thinking_prefix true
 
     # Optimization
     --num_train_epochs "${NUM_TRAIN_EPOCHS}"
@@ -55,6 +54,11 @@ TRAIN_CMD=(
     --warmup_steps "${WARMUP_STEPS}"
     # --max_grad_norm "${MAX_GRAD_NORM}"
     --deepspeed "${DEEPSPEED}"
+
+    # Validation
+    --split_dataset_ratio "${SPLIT_DATASET_RATIO}"
+    --eval_strategy "${EVAL_STRATEGY}"
+    --eval_steps "${EVAL_STEPS}" 
 
     # Checkpoint saving
     --output_dir "${RUN_OUTPUT_DIR}"

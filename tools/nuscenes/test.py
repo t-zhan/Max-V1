@@ -51,6 +51,7 @@ def _parse_args(argv=None):
         default=None,
     )
     parser.add_argument("--max-new-tokens", type=int)
+    parser.add_argument("--ego-status", choices=("true", "false"), default="true")
     args = parser.parse_args(argv)
 
     if args.pred_pkl:
@@ -84,6 +85,7 @@ def main(argv=None):
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             enable_thinking=args.enable_thinking,
+            ego_status=args.ego_status == "true",
             max_new_tokens=args.max_new_tokens,
             n_samples=args.n_samples,
             seed=args.seed,

@@ -23,7 +23,7 @@ TRAIN_CMD=(
     --tuner_type "${TUNER_TYPE}"
     --freeze_vit "${FREEZE_VIT}"
     --target_modules ${TARGET_MODULES}
-    --add_non_thinking_prefix false
+    --add_non_thinking_prefix true
 
     # Special tokens
     --new_special_tokens "${NEW_SPECIAL_TOKENS}"
@@ -35,6 +35,11 @@ TRAIN_CMD=(
     --learning_rate "${LEARNING_RATE}"
     --warmup_steps "${WARMUP_STEPS}"
     --deepspeed "${DEEPSPEED}"
+
+    # Validation
+    --split_dataset_ratio "${SPLIT_DATASET_RATIO}"
+    --eval_strategy "${EVAL_STRATEGY}"
+    --eval_steps "${EVAL_STEPS}"    
 
     # Checkpoint saving
     --output_dir "${OUTPUT_DIR}"
