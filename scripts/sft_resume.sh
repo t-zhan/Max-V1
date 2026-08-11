@@ -43,6 +43,7 @@ TRAIN_CMD=(
     --tuner_type "${TUNER_TYPE}"
     --freeze_vit "${FREEZE_VIT}"
     --freeze_llm "${FREEZE_LLM}"
+    --freeze_aligner false
     --target_modules ${TARGET_MODULES}
     --add_non_thinking_prefix true
 

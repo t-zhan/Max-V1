@@ -11,6 +11,10 @@ from transformers.models.qwen3_5 import Qwen3_5Config, Qwen3_5ForConditionalGene
 from transformers.models.qwen3_vl import Qwen3VLConfig, Qwen3VLForConditionalGeneration
 
 from models.max_v1.config import MaxConfig, RegHeadConfig
+from models.max_v1.norm_alignment import (
+    GlobalWeightCompensatedLayerNorm,
+    mean_nonzero_embedding_l2,
+)
 from models.max_v1.prompt_template import (
     B2DVL_IMAGE_DESC,
     B2DVL_WAYPOINT_QUESTION,
@@ -74,6 +78,18 @@ class Max(PreTrainedModel):
         self.config.image_token_id = self.backbone.config.image_token_id
 
         backbone_embeddings = self.backbone.get_input_embeddings().weight
+        if self.config.use_visual_norm_alignment:
+            self.visual_token_norm = GlobalWeightCompensatedLayerNorm(
+                self.config.hidden_size,
+                device=backbone_embeddings.device,
+                dtype=backbone_embeddings.dtype,
+            )
+        else:
+            self.visual_token_norm = nn.Identity()
+        if self.config.use_visual_norm_alignment:
+            self.backbone.model.visual.register_forward_hook(
+                self._apply_visual_token_norm,
+            )
         self.point_embed_layer = nn.Linear(
             2,
             self.config.hidden_size,
@@ -86,6 +102,8 @@ class Max(PreTrainedModel):
             dtype=backbone_embeddings.dtype,
         )
         self.post_init()
+        if self.config.use_visual_norm_alignment and not is_finetuned:
+            self._initialize_visual_token_norm(backbone_embeddings)
 
     @property
     def model(self):
@@ -94,6 +112,19 @@ class Max(PreTrainedModel):
     @property
     def visual(self):
         return self.backbone.model.visual
+
+    def _initialize_visual_token_norm(self, embedding_weight=None):
+        if not isinstance(self.visual_token_norm, GlobalWeightCompensatedLayerNorm):
+            return None
+        if embedding_weight is None:
+            embedding_weight = self.backbone.get_input_embeddings().weight
+        target_l2 = mean_nonzero_embedding_l2(embedding_weight)
+        self.visual_token_norm.initialize_from_target_l2(target_l2)
+        return target_l2
+
+    def _apply_visual_token_norm(self, _module, _inputs, outputs):
+        outputs.pooler_output = self.visual_token_norm(outputs.pooler_output)
+        return outputs
 
     @staticmethod
     def _extend_attention_mask(attention_mask, point_count):
@@ -116,6 +147,12 @@ class Max(PreTrainedModel):
             dtype=position_ids.dtype,
         )[None, None, :]
         return torch.cat((position_ids, last_position + offsets), dim=-1)
+
+    def _norm_wp(self, wp):
+        return wp / wp.new_tensor(self.config.waypoint_rms)
+
+    def _denorm_wp(self, wp):
+        return wp * wp.new_tensor(self.config.waypoint_rms)
 
     @contextmanager
     def _suspend_gradient_checkpointing(self):
@@ -182,6 +219,8 @@ class Max(PreTrainedModel):
                 f"got {waypoints.shape[1]}"
             )
         waypoints = waypoints.to(device=point_weight.device, dtype=point_weight.dtype)
+        waypoints_m = waypoints
+        waypoints = self._norm_wp(waypoints)
         attention_mask = attention_mask.to(point_weight.device)
         position_ids = position_ids.to(point_weight.device)
 
@@ -257,25 +296,48 @@ class Max(PreTrainedModel):
             position_ids,
         )
         predicted_points = self.reg_head(outputs.hidden_states[-1][:, base_seq_len:, :])
+        predicted_points_m = self._denorm_wp(predicted_points)
 
-        outputs["pred_waypoints"] = predicted_points
+        outputs["pred_waypoints"] = predicted_points_m.detach()
         reg_loss = mse_loss(predicted_points, waypoints)
         outputs["reg_loss"] = reg_loss.detach()
 
         with torch.no_grad():
             outputs["uniad_l2_avg"] = torch.sqrt(
-                ((predicted_points[:, 1::2] - waypoints[:, 1::2]) ** 2).sum(dim=-1)
+                ((predicted_points_m[:, 1::2] - waypoints_m[:, 1::2]) ** 2).sum(dim=-1)
             ).mean()
+
+            ##### 诊断 #####
+            def _rms(t):
+                return t.float().square().mean(-1).sqrt()      # [B, T]
+
+            point_embeds = self.point_embed_layer(point_inputs)
+            rms_base = _rms(base_inputs_embeds).flatten()
+            rms_point = _rms(point_embeds)[:, 1:].flatten()    # 跳过零起点
+
+            outputs["diag_rms_base_mean"] = rms_base.mean()
+            outputs["diag_rms_base_std"] = rms_base.std()
+            outputs["diag_rms_point_mean"] = rms_point.mean()
+            outputs["diag_rms_point_std"] = rms_point.std()
+            outputs["diag_rms_ratio"] = rms_point.mean() / rms_base.mean().clamp_min(1e-6)
+
+            # ── waypoint 归一化 ──
+            wp = waypoints.float()
+            outputs["diag_wp_rms_x"] = wp[..., 0].square().mean().sqrt()
+            outputs["diag_wp_rms_y"] = wp[..., 1].square().mean().sqrt()
+            outputs["diag_wp_absmax"] = wp.abs().amax()
+            outputs["diag_wp_mean"] = wp.mean()
 
         if rollout_points is not None:
             with torch.no_grad():
+                rollout_points_m = self._denorm_wp(rollout_points)
                 outputs["rollout_gt_mse"] = mse_loss(
-                    rollout_points,
-                    waypoints[:, teacher_steps:],
+                    rollout_points_m,
+                    waypoints_m[:, teacher_steps:],
                 ).detach()
                 outputs["rollout_pred_mse"] = mse_loss(
-                    rollout_points,
-                    predicted_points[:, teacher_steps:],
+                    rollout_points_m,
+                    predicted_points_m[:, teacher_steps:],
                 ).detach()
 
         if labels is None:
@@ -356,7 +418,7 @@ class Max(PreTrainedModel):
             next_point = self.reg_head(outputs.last_hidden_state[:, -1:, :])
             current_points = torch.cat((current_points, next_point), dim=1)
 
-        return current_points[:, 1:]
+        return self._denorm_wp(current_points[:, 1:])
 
     @staticmethod
     def _generated_attention_mask(generated_ids, eos_token_ids):

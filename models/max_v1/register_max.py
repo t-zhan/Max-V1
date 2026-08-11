@@ -67,6 +67,16 @@ class MaxLoader(ModelLoader):
             bool,
             config.rollout_use_cache,
         )
+        config.waypoint_rms = get_env_args(
+            "waypoint_rms",
+            json.loads,
+            config.waypoint_rms,
+        )
+        config.use_visual_norm_alignment = get_env_args(
+            "use_visual_norm_alignment",
+            bool,
+            config.use_visual_norm_alignment,
+        )
         return config
 
     def get_processor(self, model_dir, config):
@@ -196,7 +206,7 @@ register_model_arch(
         MAX_ARCH,
         language_model=["backbone.model.language_model", "backbone.lm_head"],
         vision_tower=["backbone.model.visual"],
-        aligner=[],
+        aligner=["visual_token_norm"],
         generator=[],
     ))
 

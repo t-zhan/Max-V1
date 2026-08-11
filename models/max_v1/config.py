@@ -29,6 +29,8 @@ class MaxConfig(PretrainedConfig):
                  max_model_len=65536,
                  max_new_tokens=65536,
                  rollout_use_cache=True,
+                 use_visual_norm_alignment=False,
+                 waypoint_rms=(1.0, 1.0),
                  **kwargs):
         super().__init__(**kwargs)
         self.qwen_model_dir = qwen_model_dir
@@ -39,3 +41,9 @@ class MaxConfig(PretrainedConfig):
         self.max_new_tokens = max_new_tokens
         self.scheduled_sampling_ratio = scheduled_sampling_ratio
         self.rollout_use_cache = rollout_use_cache
+        self.use_visual_norm_alignment = use_visual_norm_alignment
+        if isinstance(waypoint_rms, (int, float)):
+            waypoint_rms = [waypoint_rms] * 2
+        if len(waypoint_rms) != 2 or min(waypoint_rms) <= 0:
+            raise ValueError("waypoint_rms must contain two positive numbers.")
+        self.waypoint_rms = list(waypoint_rms)

@@ -22,6 +22,7 @@ TRAIN_CMD=(
     # Model tuning and freezing
     --tuner_type "${TUNER_TYPE}"
     --freeze_vit "${FREEZE_VIT}"
+    --freeze_aligner false
     --target_modules ${TARGET_MODULES}
     --add_non_thinking_prefix true
 
@@ -34,6 +35,7 @@ TRAIN_CMD=(
     --gradient_accumulation_steps "${GRADIENT_ACCUMULATION_STEPS}"
     --learning_rate "${LEARNING_RATE}"
     --warmup_steps "${WARMUP_STEPS}"
+    --max_grad_norm "${MAX_GRAD_NORM}"
     --deepspeed "${DEEPSPEED}"
 
     # Validation

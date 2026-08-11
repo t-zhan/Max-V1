@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-for model_path in $(find "${NUSC_EVAL_CHECKPOINT}" -maxdepth 1 -type d -name 'checkpoint-*' | sort -V); do
+for model_path in $(find "${d}" -maxdepth 1 -type d -name 'checkpoint-*' | sort -Vr); do
     torchrun --nproc_per_node="${NPROC_PER_NODE}" tools/nuscenes/test.py \
         --model-path "${model_path}" \
         --traj-file "${NUSC_EVAL_TRAJ_FILE}" \
