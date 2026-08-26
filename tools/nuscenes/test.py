@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -52,7 +53,14 @@ def _parse_args(argv=None):
     )
     parser.add_argument("--max-new-tokens", type=int)
     parser.add_argument("--ego-status", choices=("true", "false"), default="true")
+    parser.add_argument("--swanlab-project")
+    parser.add_argument("--swanlab-name")
     args = parser.parse_args(argv)
+
+    if bool(args.swanlab_project) != bool(args.swanlab_name):
+        parser.error(
+            "--swanlab-project and --swanlab-name must be provided together"
+        )
 
     if args.pred_pkl:
         if not args.eval:
@@ -67,8 +75,24 @@ def _parse_args(argv=None):
 
 def main(argv=None):
     args = _parse_args(argv)
+    is_main_process = int(os.environ.get("RANK", "0")) == 0
+    sample_logger = None
+    if args.swanlab_project and is_main_process and not args.pred_pkl:
+        import swanlab
+
+        swanlab.init(
+            project=args.swanlab_project,
+            name=args.swanlab_name,
+            config={
+                "enable_thinking": args.enable_thinking,
+                "ego_status": args.ego_status == "true",
+            },
+        )
+        sample_logger = swanlab.log
 
     if args.pred_pkl:
+        if not is_main_process:
+            return
         from tools.nuscenes.utils.planning_eval import load_predictions
 
         predictions = load_predictions(args.pred_pkl)
@@ -89,6 +113,8 @@ def main(argv=None):
             max_new_tokens=args.max_new_tokens,
             n_samples=args.n_samples,
             seed=args.seed,
+            seg_pkl=args.seg_pkl,
+            sample_logger=sample_logger,
         )
         if outputs is None:
             return

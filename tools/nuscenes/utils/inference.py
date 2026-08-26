@@ -53,11 +53,20 @@ def _load_records(info_pkl, traj_file, ego_status=True):
         )
         if not ego_status:
             user_content = strip_ego_status(user_content)
+        gt_trajectory = torch.as_tensor(
+            info["gt_ego_fut_trajs"], dtype=torch.float32
+        ).cumsum(dim=-2)[:6, :2]
+        gt_mask = torch.as_tensor(
+            info["gt_ego_fut_masks"], dtype=torch.float32
+        )[:6]
+        gt_mask = gt_mask.unsqueeze(-1).repeat(1, 2)
         records.append({
             "index": index,
             "token": info["token"],
             "messages": [{"role": "user", "content": user_content}],
             "image_paths": row["image"],
+            "gt_trajectory": gt_trajectory,
+            "gt_mask": gt_mask,
         })
     return records
 
@@ -75,7 +84,14 @@ class _NuScenesInferenceDataset(Dataset):
         for path in record["image_paths"]:
             with Image.open(path) as image:
                 images.append(image.convert("RGB"))
-        return record["index"], record["token"], record["messages"], images
+        return (
+            record["index"],
+            record["token"],
+            record["messages"],
+            images,
+            record["gt_trajectory"],
+            record["gt_mask"],
+        )
 
 
 def _collate(batch):
@@ -93,9 +109,100 @@ def _init_distributed():
     return dist.get_rank(), dist.get_world_size()
 
 
-def _infer(model, loader, system_prompt, enable_thinking, rank):
+def _build_metric_loggers(seg_pkl, sample_logger):
+    from tools.nuscenes.utils.planning_eval import (
+        PlanningMetricLoose,
+        _get_occupancy,
+        _load_occupancy_map,
+    )
+
+    occupancy_map = _load_occupancy_map(seg_pkl)
+    metric = PlanningMetricLoose() if occupancy_map is not None else None
+    uniad_steps = [1, 3, 5]
+    accumulating_l2_sum = 0.0
+    accumulating_l2_total = 0
+    batch_obj_box_col_start = (
+        metric.obj_box_col.clone() if metric is not None else None
+    )
+    batch_total_start = metric.total.clone() if metric is not None else None
+
+    def log_sample(index, token, prediction, gt_trajectory, gt_mask):
+        nonlocal accumulating_l2_sum, accumulating_l2_total
+        prediction = torch.from_numpy(prediction).unsqueeze(0)
+        gt_trajectory = gt_trajectory.unsqueeze(0)
+        gt_mask = gt_mask.unsqueeze(0)
+        sample_l2 = torch.sqrt(
+            (
+                ((prediction[:, :, :2] - gt_trajectory[:, :, :2]) ** 2)
+                * gt_mask
+            ).sum(dim=-1)
+        )
+        payload = {}
+
+        if metric is not None:
+            segmentation = _get_occupancy(occupancy_map, token)
+            if segmentation is not None:
+                metric.update(
+                    prediction,
+                    gt_trajectory,
+                    gt_mask,
+                    segmentation,
+                )
+                payload["accumulating/uniad_obj_box_col"] = (
+                    metric.obj_box_col[uniad_steps] / metric.total
+                ).mean().item()
+
+        if gt_mask[0, uniad_steps, 0].bool().all().item():
+            sample_l2_avg = sample_l2[0, uniad_steps].mean().item()
+            accumulating_l2_sum += sample_l2_avg
+            accumulating_l2_total += 1
+            payload.update(
+                {
+                    "sample_or_batch/uniad_l2_avg": sample_l2_avg,
+                    "accumulating/uniad_l2_avg": (
+                        accumulating_l2_sum / accumulating_l2_total
+                    ),
+                }
+            )
+        if payload:
+            sample_logger(payload, step=index)
+
+    def log_batch(batch_index):
+        nonlocal batch_obj_box_col_start, batch_total_start
+        assert metric is not None
+        batch_total = metric.total - batch_total_start
+        if batch_total.item():
+            sample_logger(
+                {
+                    "sample_or_batch/uniad_obj_box_col": (
+                        (
+                            metric.obj_box_col[uniad_steps]
+                            - batch_obj_box_col_start[uniad_steps]
+                        )
+                        / batch_total
+                    ).mean().item()
+                },
+                step=batch_index,
+            )
+        batch_obj_box_col_start = metric.obj_box_col.clone()
+        batch_total_start = metric.total.clone()
+
+    return log_sample, log_batch if metric is not None else None
+
+
+def _infer(
+    model,
+    loader,
+    system_prompt,
+    enable_thinking,
+    rank,
+    sample_metric_logger=None,
+    batch_metric_logger=None,
+):
     results = []
-    for batch in tqdm(loader, desc=f"rank{rank}", position=rank, disable=rank != 0):
+    for batch_index, batch in enumerate(
+        tqdm(loader, desc=f"rank{rank}", position=rank, disable=rank != 0)
+    ):
         samples = [
             {
                 "messages": messages,
@@ -103,11 +210,18 @@ def _infer(model, loader, system_prompt, enable_thinking, rank):
                 "images": images,
                 "chat_template_kwargs": {"enable_thinking": enable_thinking},
             }
-            for _, _, messages, images in batch
+            for _, _, messages, images, _, _ in batch
         ]
         pred_waypoints, generated_texts = model.generate_waypoints(samples)
         predictions = pred_waypoints.detach().cpu().float().numpy()
-        for (index, token, _, _), prediction, generated_text in zip(
+        for (
+            index,
+            token,
+            _,
+            _,
+            gt_trajectory,
+            gt_mask,
+        ), prediction, generated_text in zip(
             batch,
             predictions,
             generated_texts,
@@ -117,12 +231,22 @@ def _infer(model, loader, system_prompt, enable_thinking, rank):
                 raise ValueError(
                     f"Invalid waypoint prediction for {token}: {prediction.shape}"
                 )
+            if sample_metric_logger is not None:
+                sample_metric_logger(
+                    index,
+                    token,
+                    prediction,
+                    gt_trajectory,
+                    gt_mask,
+                )
             results.append((
                 index,
                 token,
                 prediction.astype(np.float32, copy=False),
                 generated_text,
             ))
+        if batch_metric_logger is not None:
+            batch_metric_logger(batch_index)
     return results
 
 
@@ -182,6 +306,8 @@ def run_inference(
     max_new_tokens=None,
     n_samples=None,
     seed=42,
+    seg_pkl=None,
+    sample_logger=None,
 ):
     from models.max_v1.max_carla import Max
 
@@ -193,6 +319,13 @@ def run_inference(
             seed,
         )
         rank_records = records[rank::world_size]
+        sample_metric_logger = None
+        batch_metric_logger = None
+        if rank == 0 and sample_logger is not None:
+            sample_metric_logger, batch_metric_logger = _build_metric_loggers(
+                seg_pkl,
+                sample_logger,
+            )
         loader = DataLoader(
             _NuScenesInferenceDataset(rank_records),
             batch_size=batch_size,
@@ -217,6 +350,8 @@ def run_inference(
             NUSCENES_SYSTEM,
             enable_thinking,
             rank,
+            sample_metric_logger,
+            batch_metric_logger,
         )
         results = _gather_results(results, world_size)
         if rank == 0:

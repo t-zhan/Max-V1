@@ -479,10 +479,33 @@ class Max(PreTrainedModel):
             generated_ids,
             self.backbone.generation_config.eos_token_id,
         ).to(attention_mask.dtype)
+        tokenizer = self.processor.tokenizer
+        newline_id, = tokenizer.encode("\n", add_special_tokens=False)
+        im_end_id = tokenizer.convert_tokens_to_ids("<|im_end|>")
+        valid_im_end = generated_ids.eq(im_end_id) & generated_attention_mask.bool()
+        has_im_end = valid_im_end.any(dim=-1)
+        im_end_pos = valid_im_end.long().argmax(dim=-1)
+        newline_pos = torch.where(
+            has_im_end,
+            im_end_pos + 1,
+            torch.full_like(im_end_pos, generated_ids.shape[1]),
+        )
+        generated_ids = torch.cat((
+            generated_ids,
+            torch.full_like(generated_ids[:, :1], newline_id),
+        ), dim=-1)
+        generated_attention_mask = torch.cat(
+            (generated_attention_mask, torch.zeros_like(generated_attention_mask[:, :1])), dim=-1
+        )
+        batch_idx = torch.arange(generated_ids.shape[0], device=generated_ids.device)
+        generated_ids[batch_idx, newline_pos] = newline_id
+        generated_attention_mask[batch_idx, newline_pos] = has_im_end.to(
+            generated_attention_mask.dtype
+        )
+        cot_input_ids = torch.cat((input_ids, generated_ids), dim=-1)
         cot_attention_mask = torch.cat((attention_mask, generated_attention_mask), dim=-1)
         cot_mm_token_type_ids = torch.cat(
-            (mm_token_type_ids, torch.zeros_like(generated_ids)),
-            dim=-1,
+            (mm_token_type_ids, torch.zeros_like(generated_ids)), dim=-1
         )
         pred_waypoints = self._rollout_waypoints(
             cot_input_ids,
