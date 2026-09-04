@@ -3,7 +3,6 @@
 import json
 import os
 import pickle
-import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -273,30 +272,24 @@ def _build_predictions(results, records):
         )
 
     predictions = {
-        token: trajectory
-        for _, token, trajectory, _ in results
+        token: {
+            "trajectory": trajectory,
+            "generated_text": generated_text,
+        }
+        for _, token, trajectory, generated_text in results
     }
-    generated_texts = {
-        token: generated_text
-        for _, token, _, generated_text in results
-    }
-    return predictions, generated_texts
+    return predictions
 
 
-def save_predictions(predictions, generated_texts, output_dir):
+def save_predictions(predictions, output_dir):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    trajectory_path = output_dir / "max_pred_trajs.pkl"
-    with trajectory_path.open("wb") as file:
+    result_path = output_dir / "max_results.pkl"
+    with result_path.open("wb") as file:
         pickle.dump(predictions, file, protocol=2)
 
-    text_path = output_dir / "max_generated_texts.pkl"
-    with text_path.open("wb") as file:
-        pickle.dump(generated_texts, file, protocol=2)
-
-    print(f"Saved {len(predictions)} trajectories to {trajectory_path}")
-    print(f"Saved {len(generated_texts)} generated texts to {text_path}")
+    print(f"Saved {len(predictions)} inference results to {result_path}")
 
 
 def run_inference(

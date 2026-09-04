@@ -23,7 +23,7 @@ def _parse_args(argv=None):
     )
     parser.add_argument(
         "--pred-pkl",
-        help="Evaluate this existing prediction PKL and skip inference",
+        help="Evaluate this existing result PKL and skip inference",
     )
     parser.add_argument(
         "--result-dir",
@@ -118,13 +118,13 @@ def main(argv=None):
         )
         if outputs is None:
             return
-        predictions, generated_texts = outputs
+        predictions = outputs
 
     result_dir = Path(args.result_dir) / datetime.now().strftime(
         "%Y%m%d-%H%M%S"
     )
     if not args.pred_pkl:
-        save_predictions(predictions, generated_texts, result_dir)
+        save_predictions(predictions, result_dir)
 
     if args.eval:
         from tools.nuscenes.utils.planning_eval import (

@@ -496,7 +496,7 @@ def _prepare_predictions(raw_predictions, infos):
     predictions = {}
     for info in infos:
         token = info["token"]
-        trajectory = raw_predictions[token]
+        trajectory = raw_predictions[token]["trajectory"]
         trajectory = np.asarray(trajectory, dtype=np.float32)
         if trajectory.shape != (6, 2) or not np.isfinite(trajectory).all():
             raise ValueError(
