@@ -532,8 +532,12 @@ class Max(PreTrainedModel):
                 f"{B2DVL_WAYPOINT_QUESTION}"
             )
             samples.append({
-                "messages": [{"role": "user", "content": user_content}],
-                "system": MAX_DEFAULT_SYSTEM,
+                # StdTemplateInputs.from_dict only reads the system prompt from
+                # messages[0]; a top-level "system" key is silently dropped.
+                "messages": [
+                    {"role": "system", "content": MAX_DEFAULT_SYSTEM},
+                    {"role": "user", "content": user_content},
+                ],
                 "images": [front_concat, back_concat],
                 "chat_template_kwargs": {"enable_thinking": enable_thinking},
             })

@@ -30,6 +30,7 @@ TRAIN_CMD=(
     # Model
     --model "${RESUME_SFT_CHECKPOINT}"
     --resume_from_checkpoint "${RESUME_SFT_CHECKPOINT}"
+    --resume_only_model "${RESUME_ONLY_MODEL}"
     --model_type "${MODEL_TYPE}"
 
     # Dataset and preprocessing
@@ -51,10 +52,15 @@ TRAIN_CMD=(
     --num_train_epochs "${NUM_TRAIN_EPOCHS}"
     --per_device_train_batch_size "${PER_DEVICE_TRAIN_BATCH_SIZE}"
     --gradient_accumulation_steps "${GRADIENT_ACCUMULATION_STEPS}"
-    --learning_rate "${LEARNING_RATE}"
-    --warmup_steps "${WARMUP_STEPS}"
     # --max_grad_norm "${MAX_GRAD_NORM}"
     --deepspeed "${DEEPSPEED}"
+
+    # Learning rate
+    --learning_rate "${LEARNING_RATE}"
+    --warmup_steps "${WARMUP_STEPS}"
+    # --lr_scheduler_type reduce_lr_on_plateau
+    # --lr_scheduler_kwargs '{"mode":"min","factor":0.8,"patience":20,"threshold":0.02,"threshold_mode":"rel","min_lr":1e-6}'
+    # --metric_for_best_model uniad_l2_avg
 
     # Validation
     --split_dataset_ratio "${SPLIT_DATASET_RATIO}"

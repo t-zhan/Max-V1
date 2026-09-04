@@ -4,7 +4,7 @@ set -euo pipefail
 swanlab_project="Max-V1-nusc-eval"
 
 for model_path in $(find "${NUSC_EVAL_CHECKPOINT}" -maxdepth 1 -type d -name 'checkpoint-*' | sort -Vr); do
-    swanlab_name="$(basename "$(dirname "${model_path}")")/${model_path##*/}-train"
+    swanlab_name="$(basename "$(dirname "${model_path}")")/${model_path##*/}"
 
     torchrun --nproc_per_node="${NPROC_PER_NODE}" tools/nuscenes/test.py \
         --model-path "${model_path}" \

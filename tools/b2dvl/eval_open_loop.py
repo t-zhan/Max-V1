@@ -216,13 +216,15 @@ def carla_forward_teacher_forcing(model, rgbs, ego_speeds, command_idxs, gts, co
             f"and it wants to {command_text}. "
             f"{B2DVL_WAYPOINT_QUESTION}"
         )
+        # StdTemplateInputs.from_dict only reads the system prompt from
+        # messages[0]; a top-level "system" key is silently dropped.
         messages = [
+            {"role": "system", "content": MAX_DEFAULT_SYSTEM},
             {"role": "user", "content": user_content},
             {"role": "assistant", "content": cot_text},
         ]
         encoded_list.append(model.inference_template.encode(TemplateInputs.from_dict({
             "messages": messages,
-            "system": MAX_DEFAULT_SYSTEM,
             "images": [front_concat, back_concat],
         })))
 

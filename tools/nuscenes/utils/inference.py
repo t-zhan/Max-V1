@@ -205,8 +205,12 @@ def _infer(
     ):
         samples = [
             {
-                "messages": messages,
-                "system": system_prompt,
+                # StdTemplateInputs.from_dict only reads the system prompt from
+                # messages[0]; a top-level "system" key is silently dropped.
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    *messages,
+                ],
                 "images": images,
                 "chat_template_kwargs": {"enable_thinking": enable_thinking},
             }
