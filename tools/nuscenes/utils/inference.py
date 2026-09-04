@@ -3,10 +3,10 @@
 import json
 import os
 import pickle
+from collections import Counter
 from datetime import timedelta
 from pathlib import Path
 
-import numpy as np
 import torch
 import torch.distributed as dist
 from PIL import Image
@@ -120,12 +120,13 @@ def _build_metric_loggers(seg_pkl, sample_logger):
     uniad_steps = [1, 3, 5]
     accumulating_l2_sum = 0.0
     accumulating_l2_total = 0
+    status_counts = Counter()
     batch_obj_box_col_start = (
         metric.obj_box_col.clone() if metric is not None else None
     )
     batch_total_start = metric.total.clone() if metric is not None else None
 
-    def log_sample(index, token, prediction, gt_trajectory, gt_mask):
+    def log_sample(index, token, prediction, gt_trajectory, gt_mask, status):
         nonlocal accumulating_l2_sum, accumulating_l2_total
         prediction = torch.from_numpy(prediction).unsqueeze(0)
         gt_trajectory = gt_trajectory.unsqueeze(0)
@@ -136,7 +137,12 @@ def _build_metric_loggers(seg_pkl, sample_logger):
                 * gt_mask
             ).sum(dim=-1)
         )
-        payload = {}
+        status_counts[status] += 1
+        seen = status_counts.total()
+        payload = {
+            "accumulating/parse_fail_rate": status_counts["fail"] / seen,
+            "accumulating/parse_partial_rate": status_counts["partial"] / seen,
+        }
 
         if metric is not None:
             segmentation = _get_occupancy(occupancy_map, token)
@@ -163,8 +169,7 @@ def _build_metric_loggers(seg_pkl, sample_logger):
                     ),
                 }
             )
-        if payload:
-            sample_logger(payload, step=index)
+        sample_logger(payload, step=index)
 
     def log_batch(batch_index):
         nonlocal batch_obj_box_col_start, batch_total_start
@@ -215,8 +220,7 @@ def _infer(
             }
             for _, _, messages, images, _, _ in batch
         ]
-        pred_waypoints, generated_texts = model.generate_waypoints(samples)
-        predictions = pred_waypoints.detach().cpu().float().numpy()
+        predictions, generated_texts, statuses = model.generate_trajectories(samples)
         for (
             index,
             token,
@@ -224,16 +228,13 @@ def _infer(
             _,
             gt_trajectory,
             gt_mask,
-        ), prediction, generated_text in zip(
+        ), prediction, generated_text, status in zip(
             batch,
             predictions,
             generated_texts,
+            statuses,
             strict=True,
         ):
-            if prediction.shape != (6, 2) or not np.isfinite(prediction).all():
-                raise ValueError(
-                    f"Invalid waypoint prediction for {token}: {prediction.shape}"
-                )
             if sample_metric_logger is not None:
                 sample_metric_logger(
                     index,
@@ -241,12 +242,14 @@ def _infer(
                     prediction,
                     gt_trajectory,
                     gt_mask,
+                    status,
                 )
             results.append((
                 index,
                 token,
-                prediction.astype(np.float32, copy=False),
+                prediction,
                 generated_text,
+                status,
             ))
         if batch_metric_logger is not None:
             batch_metric_logger(batch_index)
@@ -264,7 +267,7 @@ def _gather_results(results, world_size):
 
 def _build_predictions(results, records):
     expected_tokens = {record["token"] for record in records}
-    prediction_tokens = {token for _, token, _, _ in results}
+    prediction_tokens = {token for _, token, _, _, _ in results}
     if prediction_tokens != expected_tokens or len(results) != len(records):
         raise ValueError(
             "Prediction tokens do not match the selected nuScenes dataset "
@@ -275,8 +278,9 @@ def _build_predictions(results, records):
         token: {
             "trajectory": trajectory,
             "generated_text": generated_text,
+            "parse_status": status,
         }
-        for _, token, trajectory, generated_text in results
+        for _, token, trajectory, generated_text, status in results
     }
     return predictions
 

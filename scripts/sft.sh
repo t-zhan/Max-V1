@@ -30,7 +30,7 @@ TRAIN_CMD=(
     --add_non_thinking_prefix true
 
     # Special tokens
-    --new_special_tokens "${NEW_SPECIAL_TOKENS}"
+    --new_special_tokens ${NEW_SPECIAL_TOKENS}
 
     # Optimization
     --num_train_epochs "${NUM_TRAIN_EPOCHS}"
@@ -48,7 +48,13 @@ TRAIN_CMD=(
 
     # Validation
     --eval_strategy "${EVAL_STRATEGY}"
-    --eval_steps "${EVAL_STEPS}"    
+    --eval_steps "${EVAL_STEPS}"
+    --predict_with_generate true
+    --enable_thinking "${ENABLE_THINKING}"
+    --eval_metric max_nusc_traj
+    --max_new_tokens "${NUSC_EVAL_MAX_NEW_TOKENS}"
+    --metric_for_best_model uniad_l2_avg
+    --greater_is_better false
 
     # Checkpoint saving
     --output_dir "${OUTPUT_DIR}"
@@ -60,9 +66,8 @@ TRAIN_CMD=(
     --report_to ${REPORT_TO}
     --swanlab_project "${SWANLAB_PROJECT_NAME}"
 
-    # Plugins and callbacks
+    # Plugins
     --external_plugins ${EXTERNAL_PLUGINS}
-    --callbacks ${CALLBACKS}
 )
 
 if [[ "${1:-}" == "--background" ]]; then

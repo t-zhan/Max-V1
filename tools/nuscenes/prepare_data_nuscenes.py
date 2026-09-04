@@ -12,7 +12,7 @@ nuScenes 轨迹预测 + VQA → Max V1 CoT SFT 数据构造脚本。
 
 用法 (从项目根目录，数据路径已有默认值):
   python tools/nuscenes/prepare_data_nuscenes.py \
-    --out data/sft/nuscenes_cot_train.json \
+    --out data/sft/nuscenes_text_train.json \
     --enable-thinking true \
     --ego-status true \
     --limit 100
@@ -21,15 +21,13 @@ nuScenes 轨迹预测 + VQA → Max V1 CoT SFT 数据构造脚本。
 import argparse
 import json
 import pickle
-import re
 from pathlib import Path
 
 from tqdm import tqdm
 
 from models.max_v1.prompt_template import NUSCENES_SYSTEM
+from models.max_v1.waypoint_text import parse_trajectory
 from tools.nuscenes.utils import strip_ego_status
-
-_WAYPOINT_RE = re.compile(r"\((-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\)")
 
 
 def _build_sample(vqa: dict | None, traj: dict, root: Path,
@@ -58,9 +56,8 @@ def _build_sample(vqa: dict | None, traj: dict, root: Path,
         cot_lines.append(cot_notice)
         cot = "<think>\n" + "\n".join(cot_lines) + "\n</think>"
 
-    wp_matches = _WAYPOINT_RE.findall(traj["conversations"][1]["value"])
-    assert len(wp_matches) == 6
-    waypoints = [[float(x), float(y)] for x, y in wp_matches]
+    answer = traj["conversations"][1]["value"].strip()
+    assert parse_trajectory(answer, 6)[1] == "ok"
 
     if vqa is not None:
         images = [str((root / p).resolve()) for p in vqa["image"]]
@@ -75,10 +72,9 @@ def _build_sample(vqa: dict | None, traj: dict, root: Path,
     return {
         "messages": [
             {"role": "user", "content": user_content},
-            {"role": "assistant", "content": cot},
+            {"role": "assistant", "content": f"{cot}\n{answer}" if cot else answer},
         ],
         "images": images,
-        "waypoints": waypoints,
         "system": system_prompt,
     }
 
@@ -114,7 +110,7 @@ def main():
     enable_thinking = args.enable_thinking == "true"
     ego_status = args.ego_status == "true"
 
-    cot_notice = "The final trajectory will be predicted by the waypoint regression head."
+    cot_notice = "Now output the final trajectory."
 
     # PKL: path→token + prev_token→next 一步构建
     print(f"加载 PKL: {args.pkl_file}")

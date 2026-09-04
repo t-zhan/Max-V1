@@ -2,7 +2,6 @@ import json
 import os
 from dataclasses import replace
 
-import torch
 from transformers import AutoProcessor
 
 from swift.model import (
@@ -37,7 +36,6 @@ def _is_max_checkpoint(model_dir):
         config.get("model_type") == MaxConfig.model_type
         and "Max" in config.get("architectures", [])
         and isinstance(config.get("qwen_config"), dict)
-        and isinstance(config.get("reg_head_config"), dict)
     )
 
 
@@ -56,21 +54,6 @@ class MaxLoader(ModelLoader):
             "pred_len",
             int,
             config.pred_len,
-        )
-        config.scheduled_sampling_ratio = get_env_args(
-            "scheduled_sampling_ratio",
-            float,
-            config.scheduled_sampling_ratio,
-        )
-        config.rollout_use_cache = get_env_args(
-            "rollout_use_cache",
-            bool,
-            config.rollout_use_cache,
-        )
-        config.waypoint_rms = get_env_args(
-            "waypoint_rms",
-            json.loads,
-            config.waypoint_rms,
         )
         config.use_visual_norm_alignment = get_env_args(
             "use_visual_norm_alignment",
@@ -107,6 +90,7 @@ class MaxLoader(ModelLoader):
             model = Max(config, is_finetuned=False, **model_kwargs)
 
         config.qwen_config = model.backbone.config.to_dict()
+        model.generation_config = model.backbone.generation_config
         patch_get_input_embeddings(model.backbone.model.visual, "patch_embed")
         return model
 
@@ -117,43 +101,19 @@ def _make_loader(qwen_model_family):
     return FamilyMaxLoader
 
 
-class _MaxTemplateMixin:
-    def _post_encode(self, model, inputs):
-        encoded = super()._post_encode(model, inputs)
-        encoded["waypoints"] = inputs["waypoints"]
-        return encoded
-
-    def _encode(self, inputs):
-        waypoints = inputs.extra_kwargs["waypoints"]
-        encoded = super()._encode(inputs)
-        encoded["waypoints"] = torch.tensor(waypoints, dtype=torch.float32)
-        return encoded
-
-    def _data_collator(
-        self,
-        batch,
-        *,
-        padding_to=None,
-    ):
-        res = super()._data_collator(batch, padding_to=padding_to)
-        waypoints = [b["waypoints"] for b in batch]
-        res["waypoints"] = torch.stack(waypoints)
-        return res
-
-
-class MaxQwen2_5Template(_MaxTemplateMixin, Qwen2_5VLTemplate):
+class MaxQwen2_5Template(Qwen2_5VLTemplate):
     pass
 
 
-class MaxQwen3Template(_MaxTemplateMixin, Qwen3VLTemplate):
+class MaxQwen3Template(Qwen3VLTemplate):
     pass
 
 
-class MaxQwen3_5Template(_MaxTemplateMixin, Qwen3_5Template):
+class MaxQwen3_5Template(Qwen3_5Template):
     pass
 
 
-class MaxMiMoEmbodiedTemplate(_MaxTemplateMixin, Qwen2_5VLTemplate):
+class MaxMiMoEmbodiedTemplate(Qwen2_5VLTemplate):
     def _encode(self, inputs):
         if inputs.chat_template_kwargs.get("enable_thinking", True) is False:
             for message in reversed(inputs.messages):

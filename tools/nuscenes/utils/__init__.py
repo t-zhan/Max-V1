@@ -6,7 +6,6 @@ import re
 
 _EGO_RE_PATTERNS = (
     r'\n3\. Historical ego motion in 2D BEV frame:\n\s+\[PT_HIST[^\]]*\]',
-    r'\n- Use \[PT[^\]]*\] to encapsulate the trajectory\.',
     r'\n2\. Active navigation command: \[[^\]]*\].',
 )
 

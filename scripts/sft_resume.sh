@@ -1,6 +1,5 @@
 #!/bin/bash
-# Max-V1 SFT scheduled-sampling training from checkpoint weights.
-# Required env: SCHEDULED_SAMPLING_RATIO in [0, 1], ROLLOUT_USE_CACHE=true|false.
+# Max-V1 SFT continued from checkpoint weights.
 # Usage: ./scripts/sft_resume.sh [--background]
 set -euo pipefail
 
@@ -18,11 +17,6 @@ NUM_TRAIN_EPOCHS="${RESUME_NUM_TRAIN_EPOCHS}"
 # SAVE_STEPS=100
 
 # WARMUP_STEPS=10
-# export WARMUP_SCHEDULED_SAMPLING_STEPS=200
-# export WARMUP_SCHEDULED_SAMPLING_RATIO=0.5
-
-# EXTERNAL_PLUGINS="models/max_v1/register_max.py models/max_v1/max_callback.py"
-# CALLBACKS="max_loss_log max_rollout_schedule"
 
 TRAIN_CMD=(
     swift sft
@@ -67,7 +61,13 @@ TRAIN_CMD=(
 
     # Validation
     --eval_strategy "${EVAL_STRATEGY}"
-    --eval_steps "${EVAL_STEPS}" 
+    --eval_steps "${EVAL_STEPS}"
+    --predict_with_generate true
+    --enable_thinking "${ENABLE_THINKING}"
+    --eval_metric max_nusc_traj
+    --max_new_tokens "${NUSC_EVAL_MAX_NEW_TOKENS}"
+    --metric_for_best_model uniad_l2_avg
+    --greater_is_better false
 
     # Checkpoint saving
     --output_dir "${RUN_OUTPUT_DIR}"
@@ -82,9 +82,8 @@ TRAIN_CMD=(
     --swanlab_project "${SWANLAB_PROJECT_NAME}"
     --swanlab_exp_name "${RUN_OUTPUT_DIR}"
 
-    # Plugins and callbacks
+    # Plugins
     --external_plugins ${EXTERNAL_PLUGINS}
-    --callbacks ${CALLBACKS}
 )
 
 if [[ "${1:-}" == "--background" ]]; then

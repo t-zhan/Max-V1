@@ -27,7 +27,7 @@ async def predict(request: Request):
         [body["command_idx"]],
         enable_thinking=enable_thinking,
     )
-    payload = wp[0].detach().cpu().float().contiguous().numpy().tobytes()
+    payload = np.ascontiguousarray(wp[0], dtype=np.float32).tobytes()
     return Response(content=payload, media_type="application/octet-stream")
 
 

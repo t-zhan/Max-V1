@@ -23,6 +23,11 @@ from tqdm import tqdm
 from tools.nuscenes.utils import select_samples
 
 
+# The "parsed" view keeps only samples whose trajectory text needed no padding.
+PARSED_STATUSES = {"ok", "truncated"}
+VIEWS = ("full", "parsed")
+
+
 # Vendored from datasets/utils.py at UniDriveVLA commit a93c175af893.
 def box3d_to_corners(box3d):
     if isinstance(box3d, torch.Tensor):
@@ -154,7 +159,7 @@ class PlanningMetric:
             ).sum(dim=-1)
         )
 
-    def update(
+    def compute_sample(
         self,
         trajs,
         gt_trajs,
@@ -174,10 +179,28 @@ class PlanningMetric:
             fut_boxes,
             safe_incomplete,
         )
+        return l2, obj_coll_sum, obj_box_coll_sum
+
+    def accumulate(self, l2, obj_coll_sum, obj_box_coll_sum, n):
         self.obj_col += obj_coll_sum
         self.obj_box_col += obj_box_coll_sum
         self.L2 += l2.sum(dim=0)
-        self.total += len(trajs)
+        self.total += n
+
+    def update(
+        self,
+        trajs,
+        gt_trajs,
+        gt_trajs_mask,
+        fut_boxes,
+        safe_incomplete=False,
+    ):
+        self.accumulate(
+            *self.compute_sample(
+                trajs, gt_trajs, gt_trajs_mask, fut_boxes, safe_incomplete
+            ),
+            len(trajs),
+        )
 
     def compute(self):
         return {
@@ -293,7 +316,7 @@ class PlanningMetricLoose:
             ).sum(dim=-1)
         )
 
-    def update(self, trajs, gt_trajs, gt_trajs_mask, segmentation):
+    def compute_sample(self, trajs, gt_trajs, gt_trajs_mask, segmentation):
         assert trajs.shape == gt_trajs.shape
         trajs = trajs.clone()
         gt_trajs = gt_trajs.clone()
@@ -302,11 +325,19 @@ class PlanningMetricLoose:
         obj_coll_sum, obj_box_coll_sum = self.evaluate_coll(
             trajs[:, :, :2], gt_trajs[:, :, :2], segmentation
         )
+        return l2, obj_coll_sum, obj_box_coll_sum
 
+    def accumulate(self, l2, obj_coll_sum, obj_box_coll_sum, n):
         self.obj_col += obj_coll_sum
         self.obj_box_col += obj_box_coll_sum
         self.L2 += l2.sum(dim=0)
-        self.total += len(trajs)
+        self.total += n
+
+    def update(self, trajs, gt_trajs, gt_trajs_mask, segmentation):
+        self.accumulate(
+            *self.compute_sample(trajs, gt_trajs, gt_trajs_mask, segmentation),
+            len(trajs),
+        )
 
     def compute(self):
         return {
@@ -323,7 +354,7 @@ def _print_log(message, logger=None):
         logger.info(message)
 
 
-def print_uniad_format(planning_results, logger=None):
+def print_uniad_format(planning_results, view, logger=None):
     """Print raw 1s/2s/3s values exactly as UniDriveVLA UniAD."""
     from prettytable import PrettyTable
 
@@ -343,14 +374,14 @@ def print_uniad_format(planning_results, logger=None):
         table.add_row([key, fmt(v1s), fmt(v2s), fmt(v3s), fmt(avg)])
     _print_log(
         "\n--- Planning Metrics  [GPT-Driver — UniAD]  "
-        "BEV-occupancy vehicle-only | raw value at 1s/2s/3s | all samples ---",
+        f"BEV-occupancy vehicle-only | raw value at 1s/2s/3s | {view} ---",
         logger,
     )
     _print_log("\n" + str(table), logger)
     return metric_dict
 
 
-def print_stp3_format(planning_results, logger=None):
+def print_stp3_format(planning_results, view, logger=None):
     """Print cumulative 1s/2s/3s values exactly as UniDriveVLA ST-P3."""
     from prettytable import PrettyTable
 
@@ -372,14 +403,14 @@ def print_stp3_format(planning_results, logger=None):
         table.add_row([key, fmt(v1s), fmt(v2s), fmt(v3s), fmt(avg)])
     _print_log(
         "\n--- Planning Metrics  [GPT-Driver — STP-3]  "
-        "BEV-occupancy vehicle-only | cumul avg at 1s/2s/3s | all samples ---",
+        f"BEV-occupancy vehicle-only | cumul avg at 1s/2s/3s | {view} ---",
         logger,
     )
     _print_log("\n" + str(table), logger)
     return metric_dict
 
 
-def print_strict_format(planning_results, logger=None):
+def print_strict_format(planning_results, view, logger=None):
     """Print all strict cumulative half-second results and their average."""
     from prettytable import PrettyTable
 
@@ -410,7 +441,7 @@ def print_strict_format(planning_results, logger=None):
         table.add_row([key] + [fmt(value) for value in cumavg] + [fmt(avg)])
     _print_log(
         "\n--- Planning Metrics  [SparseDrive — STRICT]  "
-        "3D-box Shapely collision | skip incomplete GT ---",
+        f"3D-box Shapely collision | skip incomplete GT | {view} ---",
         logger,
     )
     _print_log("\n" + str(table), logger)
@@ -534,6 +565,41 @@ def _get_occupancy(occupancy_map, token):
     return occupancy[:6].unsqueeze(0)
 
 
+def _summarize(strict_metric, loose_metric, view):
+    strict_results = strict_metric.compute()
+    metrics = {
+        "strict": {
+            "valid_samples": int(strict_metric.total.item()),
+            "per_step": {
+                key: value.tolist()
+                for key, value in strict_results.items()
+            },
+            "summary": print_strict_format(strict_results, view),
+        },
+    }
+    if loose_metric is None:
+        return metrics
+
+    loose_results = loose_metric.compute()
+    per_step = {key: value.tolist() for key, value in loose_results.items()}
+    valid_samples = int(loose_metric.total.item())
+    metrics.update(
+        {
+            "uniad": {
+                "valid_samples": valid_samples,
+                "per_step": per_step,
+                "summary": print_uniad_format(loose_results, view),
+            },
+            "stp3": {
+                "valid_samples": valid_samples,
+                "per_step": per_step,
+                "summary": print_stp3_format(loose_results, view),
+            },
+        }
+    )
+    return metrics
+
+
 def planning_eval(
     predictions,
     info_pkl,
@@ -552,6 +618,10 @@ def planning_eval(
         raise ValueError(
             f"Predictions contain {len(unknown_tokens)} unknown nuScenes tokens"
         )
+    parse_status = {
+        token: prediction["parse_status"]
+        for token, prediction in predictions.items()
+    }
 
     indexed_infos = list(enumerate(infos))
     if n_samples is None:
@@ -569,13 +639,18 @@ def planning_eval(
     predictions = _prepare_predictions(predictions, selected_infos)
     occupancy_map = _load_occupancy_map(seg_pkl)
 
-    strict_metric = PlanningMetric()
-    loose_metric = (
-        PlanningMetricLoose() if occupancy_map is not None else None
-    )
+    strict_metrics = {view: PlanningMetric() for view in VIEWS}
+    loose_metrics = {
+        view: PlanningMetricLoose() if occupancy_map is not None else None
+        for view in VIEWS
+    }
 
     for index, info in tqdm(indexed_infos, desc="Evaluating planning"):
         prediction = predictions[info["token"]]
+        status = parse_status[info["token"]]
+        sample_views = (
+            VIEWS if status in PARSED_STATUSES else ("full",)
+        )
         gt_trajectory = torch.as_tensor(
             info["gt_ego_fut_trajs"], dtype=torch.float32
         ).cumsum(dim=-2)[:6, :2].unsqueeze(0)
@@ -586,25 +661,28 @@ def planning_eval(
 
         if gt_mask.all():
             future_boxes = _get_future_boxes(infos, index)
-            strict_metric.update(
+            sample = strict_metrics["full"].compute_sample(
                 prediction.clone(),
                 gt_trajectory.clone(),
                 gt_mask.clone(),
                 future_boxes,
             )
+            for view in sample_views:
+                strict_metrics[view].accumulate(*sample, len(prediction))
 
-        if loose_metric is not None:
+        if loose_metrics["full"] is not None:
             segmentation = _get_occupancy(occupancy_map, info["token"])
             if segmentation is not None:
-                loose_metric.update(
+                sample = loose_metrics["full"].compute_sample(
                     prediction.clone(),
                     gt_trajectory.clone(),
                     gt_mask.clone(),
                     segmentation,
                 )
+                for view in sample_views:
+                    loose_metrics[view].accumulate(*sample, len(prediction))
 
-    strict_results = strict_metric.compute()
-    strict_summary = print_strict_format(strict_results)
+    statuses = [parse_status[info["token"]] for _, info in indexed_infos]
     metadata = {}
     if checkpoint is not None:
         metadata["checkpoint"] = checkpoint
@@ -615,47 +693,21 @@ def planning_eval(
     metadata.update({
         "total_samples": len(infos),
         "evaluated_samples": len(indexed_infos),
+        "parsed_samples": sum(s in PARSED_STATUSES for s in statuses),
+        "parse_fail_rate": statuses.count("fail") / len(statuses),
+        "parse_partial_rate": statuses.count("partial") / len(statuses),
         "seed": seed,
         "collision_unit": "fraction",
     })
-    metrics = {
+    return {
         "metadata": metadata,
-        "strict": {
-            "valid_samples": int(strict_metric.total.item()),
-            "per_step": {
-                key: value.tolist()
-                for key, value in strict_results.items()
-            },
-            "summary": strict_summary,
-        },
+        "full": _summarize(
+            strict_metrics["full"], loose_metrics["full"], "all samples"
+        ),
+        "parsed": _summarize(
+            strict_metrics["parsed"], loose_metrics["parsed"], "parsed-only samples"
+        ),
     }
-    if loose_metric is None:
-        return metrics
-
-    loose_results = loose_metric.compute()
-    uniad_summary = print_uniad_format(loose_results)
-    stp3_summary = print_stp3_format(loose_results)
-    metrics.update(
-        {
-            "uniad": {
-                "valid_samples": int(loose_metric.total.item()),
-                "per_step": {
-                    key: value.tolist()
-                    for key, value in loose_results.items()
-                },
-                "summary": uniad_summary,
-            },
-            "stp3": {
-                "valid_samples": int(loose_metric.total.item()),
-                "per_step": {
-                    key: value.tolist()
-                    for key, value in loose_results.items()
-                },
-                "summary": stp3_summary,
-            },
-        }
-    )
-    return metrics
 
 
 def save_planning_metrics(metrics, output_dir):

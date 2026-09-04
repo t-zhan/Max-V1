@@ -1,22 +1,6 @@
 from transformers import PretrainedConfig
 
 
-class RegHeadConfig(PretrainedConfig):
-    model_type = "reg_head"
-
-    def __init__(self, 
-                 hidden_size=1024, 
-                 pred_len=None,
-                 reg_head_bias=False,
-                 dropout=0.0,
-                 **kwargs):
-        super().__init__(**kwargs)
-        self.hidden_size = hidden_size
-        self.pred_len = pred_len
-        self.reg_head_bias = reg_head_bias
-        self.dropout = dropout
-
-
 class MaxConfig(PretrainedConfig):
     model_type = "max"
 
@@ -25,12 +9,9 @@ class MaxConfig(PretrainedConfig):
                  qwen_model_family=None,
                  pred_len=8,
                  use_cache=False,
-                 scheduled_sampling_ratio=0.0,
                  max_model_len=65536,
                  max_new_tokens=65536,
-                 rollout_use_cache=True,
                  use_visual_norm_alignment=False,
-                 waypoint_rms=(1.0, 1.0),
                  **kwargs):
         super().__init__(**kwargs)
         self.qwen_model_dir = qwen_model_dir
@@ -39,11 +20,4 @@ class MaxConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.max_model_len = max_model_len
         self.max_new_tokens = max_new_tokens
-        self.scheduled_sampling_ratio = scheduled_sampling_ratio
-        self.rollout_use_cache = rollout_use_cache
         self.use_visual_norm_alignment = use_visual_norm_alignment
-        if isinstance(waypoint_rms, (int, float)):
-            waypoint_rms = [waypoint_rms] * 2
-        if len(waypoint_rms) != 2 or min(waypoint_rms) <= 0:
-            raise ValueError("waypoint_rms must contain two positive numbers.")
-        self.waypoint_rms = list(waypoint_rms)

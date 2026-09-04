@@ -3,7 +3,7 @@
 `tools/nuscenes` 提供以下功能：
 
 - 在不依赖 MM 系列库的情况下生成与 UniDriveVLA 对齐的增强版 nuScenes info PKL。
-- 使用 Max 生成六个未来 waypoint，并将轨迹与生成文本保存到同一个结果 PKL。
+- 使用 Max 生成六个未来 waypoint，并将轨迹、生成文本与解析状态保存到同一个结果 PKL。
 - 计算 UniDriveVLA 对齐的 STRICT、UniAD 和 STP-3 规划指标。
 
 ## 生成增强版 info PKL
@@ -49,7 +49,7 @@ nuScenes 推理与数据准备统一使用
 `models.max_v1.prompt_template.NUSCENES_SYSTEM` 作为 system prompt。
 
 `--result-dir` 默认为 `results/`。每次运行会创建格式为
-`YYYYMMDD-HHMMSS` 的时间戳子目录，并将轨迹和生成文本保存为
+`YYYYMMDD-HHMMSS` 的时间戳子目录，并将轨迹、生成文本和解析状态保存为
 `max_results.pkl`：
 
 ```python
@@ -57,6 +57,7 @@ nuScenes 推理与数据准备统一使用
     sample_token: {
         "trajectory": np.ndarray(shape=(6, 2), dtype=np.float32),
         "generated_text": str,
+        "parse_status": "ok" | "truncated" | "partial" | "fail",
     },
 }
 ```

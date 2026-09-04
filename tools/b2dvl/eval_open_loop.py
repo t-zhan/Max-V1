@@ -7,21 +7,23 @@ Usage:
   torchrun --nnodes=2 --nproc_per_node=8 --node_rank=0 --master_addr=<ip> \
     tools/b2dvl/eval_open_loop.py --model-path ... --split val --ratio 0.1
 """
-import argparse, gzip, json, os, random, re, urllib.request
+import argparse
+import gzip
+import json
+import os
+import random
+import re
+import urllib.request
 from pathlib import Path
-import cv2, numpy as np
-import torch, torch.distributed as dist
+
+import cv2
+import numpy as np
+import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from models.max_v1.max_carla import Max
-from models.max_v1.prompt_template import (
-    B2DVL_IMAGE_DESC,
-    B2DVL_WAYPOINT_QUESTION,
-    COMMAND_TO_TEXT,
-    MAX_DEFAULT_SYSTEM,
-)
-from swift.template.template_inputs import TemplateInputs
 
 WP_KEYS = ["0.5s", "1.0s", "1.5s", "2.0s", "2.5s", "3.0s", "3.5s", "4.0s"]
 CAM_DIRS = [
@@ -198,78 +200,14 @@ class _EvalDataset(Dataset):
     def collate(batch):
         rgbs, speeds, cmds, scenarios, stems, gts, cots = [], [], [], [], [], [], []
         for rgb, gt, speed, cmd, sc, st, cot in batch:
-            rgbs.append(rgb); speeds.append(speed); cmds.append(cmd)
-            scenarios.append(sc); stems.append(st); gts.append(gt); cots.append(cot)
+            rgbs.append(rgb)
+            speeds.append(speed)
+            cmds.append(cmd)
+            scenarios.append(sc)
+            stems.append(st)
+            gts.append(gt)
+            cots.append(cot)
         return rgbs, speeds, cmds, scenarios, stems, gts, cots
-
-
-@torch.inference_mode()
-def carla_forward_teacher_forcing(model, rgbs, ego_speeds, command_idxs, gts, cot_texts):
-    encoded_list = []
-    for rgb, speed, cmd, cot_text in zip(rgbs, ego_speeds, command_idxs, cot_texts):
-        command_text = COMMAND_TO_TEXT[int(cmd)]
-        front_concat, back_concat = model._concat_camera_images(rgb)
-        user_content = (
-            f"{B2DVL_IMAGE_DESC}<image><image>"
-            "Use information above to answer:\n"
-            f"The ego vehicle is driving at the speed of {float(speed):.1f} m/s, "
-            f"and it wants to {command_text}. "
-            f"{B2DVL_WAYPOINT_QUESTION}"
-        )
-        # StdTemplateInputs.from_dict only reads the system prompt from
-        # messages[0]; a top-level "system" key is silently dropped.
-        messages = [
-            {"role": "system", "content": MAX_DEFAULT_SYSTEM},
-            {"role": "user", "content": user_content},
-            {"role": "assistant", "content": cot_text},
-        ]
-        encoded_list.append(model.inference_template.encode(TemplateInputs.from_dict({
-            "messages": messages,
-            "images": [front_concat, back_concat],
-        })))
-
-    batch = model.inference_template.data_collator(encoded_list)
-    device = next(model.parameters()).device
-    input_ids = batch["input_ids"].to(device)
-    labels = batch["labels"].to(device)
-    attention_mask = batch["attention_mask"].to(device)
-    mm_token_type_ids = batch["mm_token_type_ids"].to(device)
-    pixel_values = batch["pixel_values"].to(device)
-    image_grid_thw = batch["image_grid_thw"].to(device)
-    waypoints = torch.as_tensor(
-        np.stack(gts),
-        device=device,
-        dtype=model.point_embed_layer.weight.dtype,
-    )
-
-    position_ids, _ = model.get_rope_index(
-        input_ids,
-        mm_token_type_ids=mm_token_type_ids,
-        image_grid_thw=image_grid_thw,
-        attention_mask=attention_mask,
-    )
-
-    model.config.scheduled_sampling_ratio = 0.0
-    outputs = model.forward(
-        input_ids=input_ids,
-        pixel_values=pixel_values,
-        image_grid_thw=image_grid_thw,
-        waypoints=waypoints,
-        labels=None,
-        attention_mask=attention_mask,
-        position_ids=position_ids.to(device),
-    )
-
-    base_seq_len = input_ids.shape[1]
-    shift_logits = outputs.logits[:, :base_seq_len - 1, :]
-    shift_labels = labels[:, 1:base_seq_len]
-    pred_ids = shift_logits.argmax(dim=-1)
-    token_mask = shift_labels != -100
-    token_correct = ((pred_ids == shift_labels) & token_mask).sum(dim=1)
-    token_total = token_mask.sum(dim=1)
-    token_acc = token_correct.float() / token_total.float()
-
-    return outputs["pred_waypoints"], token_correct, token_total, token_acc
 
 
 def _parse_args():
@@ -281,8 +219,6 @@ def _parse_args():
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--inference-mode", default="autoregressive",
-                        choices=["teacher_forcing", "autoregressive"])
     parser.add_argument("--enable-thinking", default="true", choices=["true", "false"])
     parser.add_argument("--sft-path", default="")
     parser.add_argument("--judge-cot", type=lambda x: x.lower() == "true", default=False)
@@ -322,7 +258,7 @@ def _sample_frames(args, vqa_dir, rank, world):
 
 def _load_cot_map_for_mode(args, rank):
     cot_map = None
-    if args.inference_mode == "teacher_forcing" or args.judge_cot:
+    if args.judge_cot:
         sft_path = args.sft_path or _default_sft_path(args.split)
         cot_map = _load_cot_map(sft_path)
         if rank == 0:
@@ -336,7 +272,7 @@ def _build_loader(args, frames, vqa_dir, raw_dir, cot_map):
         vqa_dir,
         raw_dir,
         cot_map,
-        require_cot=(args.inference_mode == "teacher_forcing" or args.judge_cot),
+        require_cot=args.judge_cot,
     )
     return DataLoader(
         ds,
@@ -347,32 +283,34 @@ def _build_loader(args, frames, vqa_dir, raw_dir, cot_map):
 
 
 def _load_model(args):
-    model = Max.from_pretrained(args.model_path).eval().cuda()
-    if args.inference_mode == "teacher_forcing":
-        model.inference_template.set_mode("train")
-    return model
+    return Max.from_pretrained(args.model_path).eval().cuda()
 
 
-def _infer_batch(model, args, rgbs, speeds, cmds, gts, gt_cots):
-    if args.inference_mode == "teacher_forcing":
-        preds, token_correct, token_total, token_acc = carla_forward_teacher_forcing(
-            model, rgbs, speeds, cmds, gts, gt_cots)
-        return preds, gt_cots, (token_correct, token_total, token_acc)
-
+def _infer_batch(model, args, rgbs, speeds, cmds):
     enable_thinking = args.enable_thinking == "true"
-    preds, _, cots = model.carla_generate(
+    preds, cots, statuses = model.carla_generate(
         rgbs,
         speeds,
         cmds,
         enable_thinking=enable_thinking,
     )
-    return preds, cots, None
+    return preds, cots, statuses
 
 
-def _format_batch_results(raw_dir, args, preds, cots, token_stats, scenarios, stems, gts, gt_cots):
+def _format_batch_results(
+    raw_dir,
+    args,
+    preds,
+    cots,
+    statuses,
+    scenarios,
+    stems,
+    gts,
+    gt_cots,
+):
     results = []
     for i in range(len(scenarios)):
-        pred_np = preds[i].cpu().float().numpy().reshape(8, 2)
+        pred_np = preds[i].reshape(8, 2)
         diffs = np.linalg.norm(pred_np - gts[i], axis=-1)
         result = {
             "frame_id": f"{scenarios[i]}/{stems[i]}",
@@ -381,20 +319,14 @@ def _format_batch_results(raw_dir, args, preds, cots, token_stats, scenarios, st
             "gt_waypoints": gts[i].tolist(),
             "pred_waypoints": pred_np.tolist(),
             "L2_error": diffs.tolist(),
+            "parse_status": statuses[i],
         }
-        if args.inference_mode == "teacher_forcing":
-            token_correct, token_total, token_acc = token_stats
-            result.update({
-                "cot_token_correct": int(token_correct[i].item()),
-                "cot_token_total": int(token_total[i].item()),
-                "cot_token_accuracy": float(token_acc[i].item()),
-            })
         if args.judge_cot:
             result["gt_cot"] = gt_cots[i]
             try:
                 result["cot_judge"] = _judge_cot_with_deepseek(
                     args, result["frame_id"], gt_cots[i], cots[i])
-            except:
+            except Exception:
                 continue
         results.append(result)
     return results
@@ -404,9 +336,9 @@ def _run_eval_loop(model, loader, args, raw_dir, rank):
     results = []
     for rgbs, speeds, cmds, scenarios, stems, gts, gt_cots in tqdm(
             loader, desc=f"rank{rank}", position=rank, disable=(rank != 0)):
-        preds, cots, token_stats = _infer_batch(model, args, rgbs, speeds, cmds, gts, gt_cots)
+        preds, cots, statuses = _infer_batch(model, args, rgbs, speeds, cmds)
         results.extend(_format_batch_results(
-            raw_dir, args, preds, cots, token_stats, scenarios, stems, gts, gt_cots))
+            raw_dir, args, preds, cots, statuses, scenarios, stems, gts, gt_cots))
     return results
 
 
@@ -419,18 +351,10 @@ def _gather_results(results, world):
 def _summarize_results(flat, args):
     L2s = [r["L2_error"] for r in flat]
     ade = float(np.mean(L2s))
-    fde = float(np.mean([l[-1] for l in L2s]))
+    fde = float(np.mean([errors[-1] for errors in L2s]))
     steps = np.mean(L2s, axis=0)
     print(f"ADE: {ade:.4f}  FDE: {fde:.4f}")
     print(f"Per-step: {[f'{s:.4f}' for s in steps]}")
-
-    cot_token_accuracy = None
-    if args.inference_mode == "teacher_forcing":
-        cot_token_correct = sum(r["cot_token_correct"] for r in flat)
-        cot_token_total = sum(r["cot_token_total"] for r in flat)
-        cot_token_accuracy = cot_token_correct / cot_token_total
-        print(f"CoT token accuracy: {cot_token_accuracy:.4f} "
-              f"({cot_token_correct}/{cot_token_total})")
 
     cot_judge_score = None
     if args.judge_cot:
@@ -442,8 +366,6 @@ def _summarize_results(flat, args):
         "fde": fde,
         "per_step": steps.tolist(),
         "n_frames": len(flat),
-        "inference_mode": args.inference_mode,
-        "cot_token_accuracy": cot_token_accuracy,
         "cot_judge_score": cot_judge_score,
         "details": flat,
     }
@@ -462,7 +384,7 @@ def main():
 
     if rank == 0:
         print(f"Split: {args.split}  Frames: {len(sampled)}/{len(frames)}  "
-              f"Batch: {args.batch_size}  GPUs: {world}  Mode: {args.inference_mode}")
+              f"Batch: {args.batch_size}  GPUs: {world}")
 
     cot_map = _load_cot_map_for_mode(args, rank)
     loader = _build_loader(args, my_frames, vqa_dir, raw_dir, cot_map)
