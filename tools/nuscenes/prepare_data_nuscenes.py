@@ -10,13 +10,11 @@ nuScenes 轨迹预测 + VQA → Max V1 CoT SFT 数据构造脚本。
 匹配方式: 通过六路图片路径(samples/CAM_*/xxx.jpg)精确关联。
 场景末尾不足 6 帧的样本直接过滤，不输出。
 
-用法 (从项目根目录):
+用法 (从项目根目录，数据路径已有默认值):
   python tools/nuscenes/prepare_data_nuscenes.py \
-    --traj-file data/UniDriveVLA_Data/nuscenes_traj_train.jsonl \
-    --vqa-file data/ReCogDrive_Pretraining/Nuscenes-QA/dataset_nuscenes_qa.jsonl \
-    --nuscenes-root data/nuscenes \
     --out data/sft/nuscenes_cot_train.json \
     --enable-thinking true \
+    --ego-status true \
     --limit 100
 """
 
@@ -89,16 +87,24 @@ def main():
     parser = argparse.ArgumentParser(
         description="nuScenes 轨迹预测 + VQA → Max V1 CoT SFT 数据构造"
     )
-    parser.add_argument("--traj-file", required=True)
-    parser.add_argument("--vqa-file", required=True)
-    parser.add_argument("--nuscenes-root", required=True)
+    parser.add_argument(
+        "--traj-file",
+        default="data/UniDriveVLA_Data/nuscenes_traj_train.jsonl",
+    )
+    parser.add_argument(
+        "--vqa-file",
+        default="data/ReCogDrive_Pretraining/Nuscenes-QA/dataset_nuscenes_qa.jsonl",
+    )
+    parser.add_argument(
+        "--pkl-file",
+        default="data/nuscenes/nuscenes_infos_train.pkl"
+    )
+    parser.add_argument("--nuscenes-root", default="data/nuscenes")
     parser.add_argument("--out", required=True)
     parser.add_argument("--enable-thinking", required=True,
                         choices=["true", "false"])
     parser.add_argument("--ego-status", required=True,
                         choices=["true", "false"])
-    parser.add_argument("--pkl-file",
-                        default="data/nuscenes/nuscenes_infos_train.pkl")
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
 

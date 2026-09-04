@@ -35,6 +35,9 @@ TRAIN_CMD=(
 
     # Dataset and preprocessing
     --dataset ${DATASET}
+    --val_dataset "${EVAL_DATASET}#${EVAL_DATASET_SAMPLES}"
+    --val_dataset_shuffle "${EVAL_DATASET_SHUFFLE}"
+    --data_seed 42
     --max_length "${MAX_LENGTH}"
     --dataset_num_proc "${DATASET_NUM_PROC}"
     --dataloader_num_workers "${DATALOADER_NUM_WORKERS}"
@@ -63,7 +66,6 @@ TRAIN_CMD=(
     # --metric_for_best_model uniad_l2_avg
 
     # Validation
-    --split_dataset_ratio "${SPLIT_DATASET_RATIO}"
     --eval_strategy "${EVAL_STRATEGY}"
     --eval_steps "${EVAL_STEPS}" 
 
