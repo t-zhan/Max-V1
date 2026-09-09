@@ -113,6 +113,12 @@ class Max(PreTrainedModel):
     def visual(self):
         return self.backbone.model.visual
 
+    def enable_input_require_grads(self):
+        self.backbone.model.language_model.enable_input_require_grads()
+
+    def disable_input_require_grads(self):
+        self.backbone.model.language_model.disable_input_require_grads()
+
     def _initialize_visual_token_norm(self, embedding_weight=None):
         if not isinstance(self.visual_token_norm, GlobalWeightCompensatedLayerNorm):
             return None

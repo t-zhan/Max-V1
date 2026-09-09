@@ -14,9 +14,6 @@ TRAIN_CMD=(
 
     # Dataset and preprocessing
     --dataset ${DATASET}
-    --val_dataset "${EVAL_DATASET}#${EVAL_DATASET_SAMPLES}"
-    --val_dataset_shuffle "${EVAL_DATASET_SHUFFLE}"
-    --data_seed 42
     --max_length "${MAX_LENGTH}"
     --dataset_num_proc "${DATASET_NUM_PROC}"
     --dataloader_num_workers "${DATALOADER_NUM_WORKERS}"
@@ -25,7 +22,7 @@ TRAIN_CMD=(
     # Model tuning and freezing
     --tuner_type "${TUNER_TYPE}"
     --freeze_vit "${FREEZE_VIT}"
-    --freeze_aligner false
+    --freeze_aligner "${FREEZE_ALIGNER}"
     --target_modules ${TARGET_MODULES}
     --add_non_thinking_prefix true
 
@@ -42,13 +39,16 @@ TRAIN_CMD=(
     # Learning rate
     --learning_rate "${LEARNING_RATE}"
     --warmup_steps "${WARMUP_STEPS}"
-    # --lr_scheduler_type reduce_lr_on_plateau
-    # --lr_scheduler_kwargs '{"mode":"min","factor":0.8,"patience":20,"threshold":0.02,"threshold_mode":"rel","min_lr":1e-6}'
-    # --metric_for_best_model uniad_l2_avg
+    --lr_scheduler_type reduce_lr_on_plateau
+    --lr_scheduler_kwargs '{"mode":"min","factor":0.8,"patience":20,"threshold":0.02,"threshold_mode":"rel","min_lr":1e-6}'
+    --metric_for_best_model uniad_l2_avg
 
     # Validation
+    --data_seed 42
+    --val_dataset "${EVAL_DATASET}#${EVAL_DATASET_SAMPLES}"
+    --val_dataset_shuffle "${EVAL_DATASET_SHUFFLE}"
     --eval_strategy "${EVAL_STRATEGY}"
-    --eval_steps "${EVAL_STEPS}"    
+    --eval_steps "${EVAL_STEPS}"
 
     # Checkpoint saving
     --output_dir "${OUTPUT_DIR}"
